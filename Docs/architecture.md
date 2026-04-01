@@ -36,20 +36,18 @@
 
 ---
 
-## 2. Варіантна архітектура
+## 2. Production Structure
 
-Проект побудований на патерні **Abstract Base + Variant Inheritance**.  
-Базові класи визначають спільну логіку, Variant-модулі наслідують та розширюють її.
+Проект перейшов на production-first структуру.  
+Активний gameplay path проходить через `Core + Character + GAS + AI + Systems + Platformer + UI`, а platformer shell-класи тепер зібрані в `Platformer/Base` та `Platformer/Camera`.
 
 ```
 Source/BurningCORE/
 │
-├── BurningCORECharacter.h/.cpp       ← abstract base (камера, EnhancedInput, Do*-паттерн)
-│
 ├── Core/                             ← Фреймворк рівня гри
 │   ├── BurningCOREGameMode           ← checkpoint-система, boss encounters, respawn
 │   ├── BurningCOREGameInstance        ← save/load, глобальний стан між рівнями
-│   ├── BurningCOREPlayerController    ← abstract base контролер
+│   ├── BurningCOREPlayerController    ← shared controller base
 │   ├── BurningCOREGameState           ← стан гри
 │   ├── BurningCOREPlayerState         ← стан гравця
 │   └── UI/MainMenu/                   ← головне меню
@@ -92,20 +90,25 @@ Source/BurningCORE/
 │   ├── BurningCORESaveGame            ← збереження (прогрес, чекпоінти, форми, апгрейди, секрети)
 │   └── CheckpointActor                ← маркер чекпоінту на рівні
 │
-├── Variant_Combat/                    ← Модуль ближнього бою (legacy)
-│   ├── CombatCharacter                ← наслідує BurningCORECharacter, combo, charged attacks
-│   ├── CombatGameMode, CombatPlayerController
-│   ├── AI/, Animation/, Gameplay/, Interfaces/, UI/
+├── Platformer/                        ← Production platformer layer
+│   ├── Character/
+│   │   ├── PlayableDragonCharacter    ← production pawn поверх ADragonCharacter
+│   │   └── PlatformerInteractable     ← platformer interaction contract
+│   └── Environment/
+│       ├── PlatformerJumpPad          ← jump pad actor
+│       ├── PlatformerMovingPlatform   ← moving platform actor
+│       ├── PlatformerPickup           ← pickup actor
+│       └── PlatformerSoftPlatform     ← one-way / drop-through platform
 │
-├── Variant_Platforming/               ← Модуль платформінгу
-│   └── Animation/                     ← AnimNotify для платформінгу
+├── UI/                                ← Runtime gameplay UI
+│   ├── PlatformerUI                   ← platformer HUD widget
+│   └── PauseMenu/                     ← pause/settings widgets
 │
-└── Variant_SideScrolling/             ← Основний модуль (side-scrolling mode)
-    ├── SideScrollingCharacter         ← основний ігровий персонаж
-    ├── SideScrollingGameMode          ← GameMode для рівнів
-    ├── SideScrollingPlayerController  ← PlayerController для side-scrolling
-    ├── SideScrollingCameraManager     ← кастомний менеджер камери
-    ├── AI/, Gameplay/, Interfaces/, UI/
+├── Platformer/Base/                   ← Framework shell для platformer mode
+│   ├── PlatformerGameMode             ← GameMode для рівнів
+│   └── PlatformerPlayerController     ← PlayerController для platformer flow
+└── Platformer/Camera/                 ← Camera shell
+    └── PlatformerCameraManager        ← кастомний менеджер камери
 ```
 
 ---
@@ -225,14 +228,14 @@ virtual void DoMove(float Right, float Forward);
 - `JumpAction` — стрибок (Space)
 - `LookAction` / `MouseLookAction` — погляд
 
-Додаткові дії для GAS abilities (Dash, Attack, FormSwitch) біндяться у `SetupPlayerInputComponent` конкретних Variant-класів.
+Додаткові дії для GAS abilities (Dash, Attack, FormSwitch) біндяться у production pawn-класах поверх `ADragonCharacter`.
 
 ---
 
 ## 8. Camera System
 
-- **Base**: `USpringArmComponent` + `UCameraComponent` на `ABurningCORECharacter`
-- **SideScrolling**: `SideScrollingCameraManager` — кастомний менеджер камери для side-view (90° відносно напрямку руху)
+- **Character**: `USpringArmComponent` + `UCameraComponent` на `ADragonCharacter`
+- **Platformer**: `PlatformerCameraManager` — кастомний менеджер камери для side-view (90° відносно напрямку руху)
 - Камера фіксована збоку (2.5D perspective)
 
 ---
@@ -269,8 +272,7 @@ virtual void DoMove(float Right, float Forward);
 | **Slate** | `Slate` / `SlateCore` | Для кастомних елементів |
 
 ### Наявні UI компоненти
-- `Variant_Combat/UI/` — CombatLifeBar (HUD ворога)
-- `Variant_SideScrolling/UI/` — side-scrolling HUD
+- `UI/` — runtime HUD і pause/settings widgets
 - `Core/UI/MainMenu/` — головне меню з вибором рівнів
 
 ---
@@ -281,8 +283,7 @@ virtual void DoMove(float Right, float Forward);
 |---|---|---|
 | `IDamageable` | `ApplyDamage(GAS Spec, HitResult)`, `IsAlive()` | `DragonCharacter`, `EnemyBase` |
 | `IInteractable` | (взаємодія) | Gameplay objects |
-| `ICombatAttacker` | `DoAttackTrace()` | `Variant_Combat` |
-| `ICombatDamageable` | Damage handling | `Variant_Combat` (legacy) |
+| `IPlatformerInteractable` | `Interaction(AActor*)` | Platformer environment / interactive actors |
 
 ---
 
@@ -294,7 +295,7 @@ virtual void DoMove(float Right, float Forward);
 |---|---|
 | Forward declarations в `.h` | `class USpringArmComponent;` |
 | `UPROPERTY` з `Category`, `meta` | `meta=(ClampMin=0, ClampMax=100)` |
-| `UCLASS(abstract)` для базових класів | `ABurningCORECharacter`, `ADragonCharacter` |
+| `UCLASS(abstract)` для базових класів | `ADragonCharacter`, `AEnemyBase` |
 | `FORCEINLINE` для getter-ів | `FORCEINLINE UCameraComponent* GetFollowCamera() const` |
 | Interface секції маркеровані | `// ~begin CombatAttacker interface` |
 | PCH: Explicit | `PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs` |
@@ -316,7 +317,7 @@ virtual void DoMove(float Right, float Forward);
 ### Файлова структура
 
 - Ім'я файлу = ім'я класу без UE-prefix (`DragonCharacter.h`)
-- Variant-специфічні: `{Variant}ClassName` (`SideScrollingCharacter`)
+- Platformer-специфічні класи залишають історичні імена, але живуть у `Platformer/*`
 - Include order: matching .h → CoreMinimal → Engine → Project
 
 ---
@@ -325,7 +326,7 @@ virtual void DoMove(float Right, float Forward);
 
 | Рішення | Причина |
 |---|---|
-| Abstract Base + Variant inheritance | Масштабованість, паралельна розробка варіантів |
+| Production-first layering | Один активний gameplay path без дублювання pawn/controller stacks |
 | UINTERFACE замість hard dependencies | Розв'язання зв'язків між підсистемами |
 | GAS для abilities та damage | Стандартний UE підхід для combat-ігор з атрибутами |
 | StateTree замість BehaviorTree | Вибір для UE 5.7+, більш сучасний підхід |
@@ -341,8 +342,7 @@ virtual void DoMove(float Right, float Forward);
 
 ```mermaid
 graph TD
-    subgraph Base ["Base Layer"]
-        BC[ABurningCORECharacter]
+    subgraph Core ["Core Layer"]
         GM[ABurningCOREGameMode]
         PC[ABurningCOREPlayerController]
         GI[UBurningCOREGameInstance]

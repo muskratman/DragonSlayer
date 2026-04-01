@@ -1,18 +1,17 @@
 # Patterns: BurningCORE UE5 C++
 
-## Pattern 1: Variant Character (наслідування від base)
+## Pattern 1: Production Character
 
 ```cpp
-// ✅ Variant наслідує base, додає свою логіку
-UCLASS(abstract)
-class ASideScrollingCharacter : public ACharacter, public ISideScrollingDamageable
+// ✅ Production pawn наслідує gameplay base і додає input glue
+UCLASS()
+class APlayableDragonCharacter : public ADragonCharacter
 {
     GENERATED_BODY()
-    // Variant-specific components та properties
+    // Production input bindings, pawn-specific tuning
 };
 
-// ❌ Variant редагує base клас напряму
-// Ніколи не додавай Variant-логіку в ABurningCORECharacter
+// ❌ Паралельний legacy pawn з дубльованим movement/input стеком
 ```
 
 ## Pattern 2: UE5 Interface
@@ -41,19 +40,16 @@ public:
 
 ```cpp
 // ✅ Input callback → public Do*() метод
-void ASideScrollingCharacter::Move(const FInputActionValue& Value)
+void APlayableDragonCharacter::Input_Move(const FInputActionValue& Value)
 {
-    FVector2D MovementVector = Value.Get<FVector2D>();
-    DoMove(MovementVector.X, MovementVector.Y);  // делегація
+    const float MoveValue = Value.Get<float>();
+    AddMovementInput(FVector(1.0f, 0.0f, 0.0f), MoveValue);
 }
 
-UFUNCTION(BlueprintCallable, Category="Input")
-virtual void DoMove(float Right, float Forward);  // AI/UI теж може викликати
-
-// ❌ Логіка руху прямо в Input callback
+// ❌ Розкидати production input logic по кількох legacy pawn-класах
 void Move(const FInputActionValue& Value)
 {
-    // ... вся логіка руху тут — AI не зможе використати
+    // дублювання input glue
 }
 ```
 

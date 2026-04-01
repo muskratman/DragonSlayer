@@ -73,6 +73,6 @@ virtual void DoAttackTrace(FName DamageSourceBone) override;
 
 ## Path Policy
 
-- Можливості > шляхи: «combat system» > «Variant_Combat/Gameplay/»
+- Можливості > шляхи: «platformer environment» > `Platformer/Environment/`
 - Критичний шлях → `<!-- VERIFY -->` маркер
 - PublicIncludePaths в Build.cs <!-- VERIFY -->

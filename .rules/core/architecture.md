@@ -2,48 +2,41 @@
 
 ## Project Shape
 
-3D side-scrolling action platformer з варіантною архітектурою.
-Єдиний C++ модуль `BurningCORE` з трьома ігровими варіантами.
-Кожен варіант — незалежний набір механік поверх спільного UE5 фреймворку.
+3D side-scrolling action platformer з production-first архітектурою.
+Єдиний C++ модуль `BurningCORE` з core/gameplay шарами та legacy variant-слідами.
+Production path проходить через `Core + Character + GAS + AI + Systems + Platformer`.
 
-## Variant Architecture
+## Production Structure
 
 ```
 Source/BurningCORE/
-├── BurningCORECharacter    ← abstract base (камера, рух, EnhancedInput)
 ├── BurningCOREGameMode     ← abstract base GameMode
 ├── BurningCOREPlayerController ← abstract base Controller
-├── Variant_Combat/         ← melee combat: combo, charged attacks, damage, AI
-│   ├── AI/                 ← CombatEnemy, CombatAIController, StateTree, EQS
-│   ├── Animation/          ← AnimNotify (combo, charged, trace)
-│   ├── Gameplay/           ← volumes, checkpoints, damageable objects
-│   ├── Interfaces/         ← ICombatAttacker, ICombatDamageable
-│   └── UI/                 ← CombatLifeBar (UMG)
-├── Variant_Platforming/    ← platforming mechanics
-│   └── Animation/          ← platforming-specific AnimNotify
-└── Variant_SideScrolling/  ← side-scrolling mode (основний gameplay)
-    ├── AI/                 ← side-scrolling AI
-    ├── Gameplay/           ← side-scrolling gameplay objects
-    ├── Interfaces/         ← side-scrolling interfaces
-    └── UI/                 ← side-scrolling HUD
+├── Platformer/
+│   ├── Character/          ← production pawn + platformer interaction contracts
+│   └── Environment/        ← moving platforms, pickups, jump pads, soft platforms
+├── UI/                     ← runtime gameplay UI + pause menu
+├── Platformer/Base/        ← platformer shell: mode + controller
+└── Platformer/Camera/      ← platformer camera shell
 ```
 
 ## Layers
 
 | Шар | Відповідальність |
 |---|---|
-| **Base** | ABurningCORECharacter (abstract), GameMode, PlayerController |
-| **Variant** | Конкретна реалізація: CombatCharacter, PlatformingCharacter, SideScrollingCharacter |
+| **Core** | GameMode, shared controller, game state, save/load |
+| **Character** | ADragonCharacter, form/overdrive components, side-view movement |
+| **Platformer** | PlayableDragonCharacter, platformer interaction contracts, environment actors |
 | **AI** | StateTree, GameplayStateTree, EQS contexts, AIController |
-| **Gameplay** | Volumes, spawners, interactables, checkpoints |
-| **Interfaces** | UE5 interfaces (UINTERFACE): ICombatAttacker, ICombatDamageable |
+| **Gameplay** | checkpoints, interactables, environment actors |
+| **Interfaces** | UE5 interfaces (UINTERFACE): IDamageable, IInteractable, platformer interaction contracts |
 | **Animation** | AnimNotify (не AnimBP — BP-only) |
 | **UI** | UMG widgets (C++ base + BP layout) |
 
 ## Key Decisions
 
-- **Abstract base + Variant наслідування** — кожен Variant_* наслідує base класи, не редагуючи їх. ЧОМУ: масштабованість, паралельна розробка варіантів.
-- **Interfaces замість hard dependencies** — ICombatAttacker/ICombatDamageable. ЧОМУ: розв'язання зв'язків між підсистемами.
+- **Production-first layering** — gameplay будується навколо `ADragonCharacter`, `AEnemyBase` і `Platformer/*`. ЧОМУ: менше дублювання та один активний production path.
+- **Interfaces замість hard dependencies** — слабка зв'язність між character/environment/UI шарами. ЧОМУ: простіше підтримувати shell та gameplay окремо.
 - **EnhancedInput** з Do*() паттерном (Move→DoMove, Look→DoLook). ЧОМУ: дозволяє UI та AI викликати ту ж логіку без InputAction.
 - **StateTree для AI** замість BehaviorTree. ЧОМУ: вибір розробника для UE 5.7+.
 - **C++ base + BP derived** для Characters та UI. ЧОМУ: логіка в C++ для агента, візуали/ассети в BP.

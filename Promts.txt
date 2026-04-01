@@ -1,1 +1,0 @@
-Сделай Rebuild solution для того чтобы editor видел созданные CPP классы. 

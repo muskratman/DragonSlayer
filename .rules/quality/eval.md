@@ -5,9 +5,9 @@
 Перед кожною відповіддю агент повинен перевірити своє рішення за цим списком:
 
 ### 1. Architectural Fit
-- [ ] Рішення використовує `Variant_*` структуру замість редагування Base класів?
+- [ ] Рішення вкладається в production-first структуру `Core + Character + GAS + AI + Systems + Platformer + UI`?
 - [ ] Перевірено збіг ролі (Architect/Gameplay/UI) з поточними файлами?
-- [ ] Взаємодія між модулями йде через Interfaces (напр. `ICombatDamageable`)?
+- [ ] Взаємодія між шарами йде через interfaces або існуючі framework-механізми без legacy-дублів?
 
 ### 2. Code Quality & Rules
 - [ ] Використано EnhancedInput `Do*()` патерн для нових Input Actions?
