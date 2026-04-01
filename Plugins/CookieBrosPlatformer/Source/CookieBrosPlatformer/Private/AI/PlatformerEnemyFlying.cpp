@@ -5,9 +5,9 @@
 APlatformerEnemyFlying::APlatformerEnemyFlying()
 {
 	// Flying enemies ignore gravity and stay in MOVE_Flying by default.
-	if (UCharacterMovementComponent* CharacterMovement = GetCharacterMovement())
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
-		CharacterMovement->GravityScale = 0.0f;
-		CharacterMovement->DefaultLandMovementMode = MOVE_Flying;
+		MovementComponent->GravityScale = 0.0f;
+		MovementComponent->DefaultLandMovementMode = MOVE_Flying;
 	}
 }

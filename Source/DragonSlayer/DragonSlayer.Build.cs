@@ -33,9 +33,7 @@ public class DragonSlayer : ModuleRules
 		PublicIncludePaths.AddRange(new string[] {
 			"DragonSlayer",
 			"DragonSlayer/Platformer/Base",
-			"DragonSlayer/Platformer/Camera",
 			"DragonSlayer/Platformer/Character",
-			"DragonSlayer/Platformer/Environment",
 			"DragonSlayer/UI",
 			"DragonSlayer/UI/PauseMenu",
 			"DragonSlayer/Core/UI",

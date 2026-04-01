@@ -88,9 +88,9 @@ void APlatformerEnemyBase::InitializeFromArchetype(const UPlatformerEnemyArchety
 	AttributeSet->SetAttackSpeed(Archetype->AttackSpeed);
 	AttributeSet->SetMoveSpeed(Archetype->MoveSpeed);
 
-	if (UCharacterMovementComponent* CharacterMovement = GetCharacterMovement())
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
-		CharacterMovement->MaxWalkSpeed = Archetype->MoveSpeed;
+		MovementComponent->MaxWalkSpeed = Archetype->MoveSpeed;
 	}
 
 	if (StateTreeComponent && Archetype->BehaviorTree)
