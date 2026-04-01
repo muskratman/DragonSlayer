@@ -37,6 +37,11 @@
 			"Name": "CookieBrosPlatformer",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "CookieBrosLevelEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }
