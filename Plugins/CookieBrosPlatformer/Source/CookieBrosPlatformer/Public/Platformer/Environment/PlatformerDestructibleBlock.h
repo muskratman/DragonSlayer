@@ -2,11 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Interfaces/Damageable.h"
-#include "Platformer/Environment/PlatformerBlock.h"
+#include "Platformer/Environment/PlatformerBlockBase.h"
 #include "PlatformerDestructibleBlock.generated.h"
 
 UCLASS()
-class COOKIEBROSPLATFORMER_API APlatformerDestructibleBlock : public APlatformerBlock, public IDamageable
+class COOKIEBROSPLATFORMER_API APlatformerDestructibleBlock : public APlatformerBlockBase, public IDamageable
 {
 	GENERATED_BODY()
 

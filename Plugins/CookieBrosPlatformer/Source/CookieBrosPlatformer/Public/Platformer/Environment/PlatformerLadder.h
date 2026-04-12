@@ -7,9 +7,9 @@
 #include "PlatformerLadder.generated.h"
 
 class UBoxComponent;
+class UHierarchicalInstancedStaticMeshComponent;
 class UPrimitiveComponent;
 class USceneComponent;
-class UStaticMeshComponent;
 class UTexture2D;
 class APlatformerCharacterBase;
 
@@ -40,7 +40,7 @@ protected:
 	TObjectPtr<USceneComponent> LadderMeshLayoutRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
-	TObjectPtr<UStaticMeshComponent> LadderMesh;
+	TObjectPtr<UHierarchicalInstancedStaticMeshComponent> LadderMeshInstances;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USceneComponent> ClimbVolumeLayoutRoot;

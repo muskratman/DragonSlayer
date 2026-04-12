@@ -17,6 +17,7 @@
 #include "Components/SceneComponent.h"
 #include "Platformer/Environment/PlatformerVanishingBlock.h"
 #include "Platformer/Environment/PlatformerWallTurret.h"
+#include "Platformer/Environment/PlatformerYokuBlocks.h"
 #include "UObject/UnrealType.h"
 
 namespace PlatformerSettingsPrivate
@@ -428,4 +429,20 @@ void UPlatformerWallTurretSettingsObject::PushToActor()
 	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(Actor, TEXT("ProjectileSpeed"), FMath::Max(0.0f, ProjectileSpeed));
 	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(Actor, TEXT("ProjectileDamage"), FMath::Max(0.0f, ProjectileDamage));
 	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(Actor, TEXT("FireInterval"), FireRate > 0.0f ? 1.0f / FireRate : 0.0f);
+}
+
+void UPlatformerYokuBlocksSettingsObject::PullFromActor(AActor* Actor)
+{
+	SetEditedActor(Actor);
+	PlatformerSettingsPrivate::GetTypedPropertyValue<FFloatProperty>(Actor, TEXT("InitialDelay"), InitialDelay);
+	PlatformerSettingsPrivate::GetTypedPropertyValue<FFloatProperty>(Actor, TEXT("ShowDuration"), ShowDuration);
+	PlatformerSettingsPrivate::GetTypedPropertyValue<FFloatProperty>(Actor, TEXT("HidenDuration"), HidenDuration);
+}
+
+void UPlatformerYokuBlocksSettingsObject::PushToActor()
+{
+	AActor* Actor = GetEditedActor();
+	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(Actor, TEXT("InitialDelay"), FMath::Max(0.0f, InitialDelay));
+	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(Actor, TEXT("ShowDuration"), FMath::Max(0.0f, ShowDuration));
+	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(Actor, TEXT("HidenDuration"), FMath::Max(0.0f, HidenDuration));
 }

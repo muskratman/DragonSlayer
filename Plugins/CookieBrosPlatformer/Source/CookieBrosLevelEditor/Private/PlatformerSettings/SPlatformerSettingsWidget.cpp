@@ -16,6 +16,7 @@
 #include "Platformer/Environment/PlatformerTriggeredLift.h"
 #include "Platformer/Environment/PlatformerVanishingBlock.h"
 #include "Platformer/Environment/PlatformerWallTurret.h"
+#include "Platformer/Environment/PlatformerYokuBlocks.h"
 #include "PlatformerSettings/PlatformerSettingsObjects.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
@@ -233,6 +234,11 @@ UPlatformerActorSettingsObject* SPlatformerSettingsWidget::CreateSettingsObjectF
 	if (Actor->IsA<APlatformerWallTurret>())
 	{
 		return NewObject<UPlatformerWallTurretSettingsObject>(GetTransientPackage());
+	}
+
+	if (Actor->IsA<APlatformerYokuBlocks>())
+	{
+		return NewObject<UPlatformerYokuBlocksSettingsObject>(GetTransientPackage());
 	}
 
 	return nullptr;

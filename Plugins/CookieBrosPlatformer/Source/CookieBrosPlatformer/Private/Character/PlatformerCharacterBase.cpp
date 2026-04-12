@@ -15,6 +15,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Platformer/Environment/PlatformerLedgeGrab.h"
 #include "Platformer/Environment/PlatformerLadder.h"
 
 APlatformerCharacterBase::APlatformerCharacterBase(const FObjectInitializer& ObjectInitializer)
@@ -128,6 +129,11 @@ FPlatformerDeveloperSettingsSnapshot APlatformerCharacterBase::CaptureDeveloperS
 	return DeveloperSettingsSnapshot;
 }
 
+FVector APlatformerCharacterBase::GetPlatformerCameraFocusLocation() const
+{
+	return GetActorLocation();
+}
+
 void APlatformerCharacterBase::NotifyLadderAvailable(APlatformerLadder* Ladder)
 {
 	if (!Ladder)
@@ -159,6 +165,30 @@ void APlatformerCharacterBase::NotifyLadderUnavailable(APlatformerLadder* Ladder
 			MovementComponent->SetMovementMode(MOVE_Falling);
 		}
 	}
+}
+
+void APlatformerCharacterBase::NotifyLedgeGrabAvailable(APlatformerLedgeGrab* LedgeGrab)
+{
+	if (!LedgeGrab)
+	{
+		return;
+	}
+
+	AvailableLedgeGrabs.AddUnique(LedgeGrab);
+}
+
+void APlatformerCharacterBase::NotifyLedgeGrabUnavailable(APlatformerLedgeGrab* LedgeGrab)
+{
+	if (!LedgeGrab)
+	{
+		return;
+	}
+
+	AvailableLedgeGrabs.RemoveAll(
+		[LedgeGrab](const TWeakObjectPtr<APlatformerLedgeGrab>& AvailableLedgeGrab)
+		{
+			return !AvailableLedgeGrab.IsValid() || AvailableLedgeGrab.Get() == LedgeGrab;
+		});
 }
 
 bool APlatformerCharacterBase::EnterLadder(APlatformerLadder* Ladder)
@@ -277,6 +307,19 @@ void APlatformerCharacterBase::ExitLadder(APlatformerLadder* Ladder)
 	OnExitedLadder(ExitedLadder);
 }
 
+void APlatformerCharacterBase::GetAvailableLedgeGrabs(TArray<APlatformerLedgeGrab*>& OutLedgeGrabs) const
+{
+	OutLedgeGrabs.Reset();
+
+	for (const TWeakObjectPtr<APlatformerLedgeGrab>& AvailableLedgeGrab : AvailableLedgeGrabs)
+	{
+		if (APlatformerLedgeGrab* ResolvedLedgeGrab = AvailableLedgeGrab.Get())
+		{
+			OutLedgeGrabs.Add(ResolvedLedgeGrab);
+		}
+	}
+}
+
 void APlatformerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -309,6 +352,12 @@ void APlatformerCharacterBase::Tick(float DeltaTime)
 	{
 		AvailableLadder = nullptr;
 	}
+
+	AvailableLedgeGrabs.RemoveAll(
+		[](const TWeakObjectPtr<APlatformerLedgeGrab>& AvailableLedgeGrab)
+		{
+			return !AvailableLedgeGrab.IsValid();
+		});
 }
 
 void APlatformerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

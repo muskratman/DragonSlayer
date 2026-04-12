@@ -1,28 +1,42 @@
 #include "GAS/Abilities/GA_PlatformerDash.h"
+
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
+#include "Traversal/PlatformerTraversalGameplayTags.h"
+#include "Traversal/PlatformerTraversalMovementComponent.h"
 
 UGA_PlatformerDash::UGA_PlatformerDash()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	// SetAssetTags(FGameplayTagContainer(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Dash"))));
-
-	// Ensure we cannot dash while already dashing or in cooldown
-	CancelAbilitiesWithTag.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Movement.Dash")));
+	ActivationOwnedTags.AddTag(PlatformerTraversalGameplayTags::Ability_Movement_SlideDash);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_SlideDash);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeHang);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeClimb);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Combat_Charging);
 }
 
-bool UGA_PlatformerDash::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, OUT FGameplayTagContainer* OptionalRelevantTags) const
+bool UGA_PlatformerDash::CanActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
 {
 	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
 	{
 		return false;
 	}
 
-	ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
-	return Character != nullptr;
+	const ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+	const UPlatformerTraversalMovementComponent* TraversalMovementComponent =
+		Character ? Cast<UPlatformerTraversalMovementComponent>(Character->GetCharacterMovement()) : nullptr;
+	return TraversalMovementComponent && Character->GetCharacterMovement()->IsMovingOnGround();
 }
 
-void UGA_PlatformerDash::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
+void UGA_PlatformerDash::ActivateAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
 {
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -30,20 +44,15 @@ void UGA_PlatformerDash::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		return;
 	}
 
-	ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
-	if (Character && Character->GetCharacterMovement())
-	{
-		// Simple impulse based dash logic
-		FVector DashDirection = Character->GetActorForwardVector();
-		Character->GetCharacterMovement()->AddImpulse(DashDirection * DashForce, true);
+	ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+	UPlatformerTraversalMovementComponent* TraversalMovementComponent =
+		Character ? Cast<UPlatformerTraversalMovementComponent>(Character->GetCharacterMovement()) : nullptr;
 
-		// In a real implementation we would play a montage and wait for it to finish
-		// or use a root motion source task.
-
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-	}
-	else
+	if (!TraversalMovementComponent || !TraversalMovementComponent->StartSlideDash())
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
 	}
+
+	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 }

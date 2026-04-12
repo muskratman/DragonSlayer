@@ -290,3 +290,22 @@ public:
 	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, DisplayName="Projectile Damage"))
 	float ProjectileDamage = 1.0f;
 };
+
+UCLASS(Transient)
+class UPlatformerYokuBlocksSettingsObject : public UPlatformerActorSettingsObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void PullFromActor(AActor* Actor) override;
+	virtual void PushToActor() override;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="s", DisplayName="Initial Delay"))
+	float InitialDelay = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="s", DisplayName="Show Duration"))
+	float ShowDuration = 1.5f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="s", DisplayName="Hiden Duration"))
+	float HidenDuration = 1.5f;
+};

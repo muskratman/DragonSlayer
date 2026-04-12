@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Platformer/Environment/PlatformerBlock.h"
+#include "Platformer/Environment/PlatformerBlockBase.h"
 #include "PlatformerSurfaceBlockBase.generated.h"
 
 class ACharacter;
@@ -10,7 +10,7 @@ class UPrimitiveComponent;
 class USceneComponent;
 
 UCLASS(Abstract)
-class COOKIEBROSPLATFORMER_API APlatformerSurfaceBlockBase : public APlatformerBlock
+class COOKIEBROSPLATFORMER_API APlatformerSurfaceBlockBase : public APlatformerBlockBase
 {
 	GENERATED_BODY()
 

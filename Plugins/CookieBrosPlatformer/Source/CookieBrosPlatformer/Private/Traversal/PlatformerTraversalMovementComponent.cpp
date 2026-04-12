@@ -2,10 +2,12 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
+#include "Character/PlatformerCharacterBase.h"
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Platformer/Environment/PlatformerLedgeGrab.h"
 #include "Traversal/PlatformerTraversalConfigDataAsset.h"
 #include "Traversal/PlatformerTraversalGameplayTags.h"
 
@@ -13,6 +15,15 @@ namespace PlatformerTraversalPrivate
 {
 	constexpr float VerticalWallNormalThreshold = 0.2f;
 	constexpr float FloorStandTolerance = 2.0f;
+
+	bool IsTraversalBlockingSurfaceHit(const FHitResult& Hit)
+	{
+		const UPrimitiveComponent* HitComponent = Hit.GetComponent();
+		return Hit.bBlockingHit
+			&& (HitComponent != nullptr)
+			&& (HitComponent->GetCollisionEnabled() != ECollisionEnabled::NoCollision)
+			&& (HitComponent->GetCollisionResponseToChannel(ECC_Pawn) == ECR_Block);
+	}
 }
 
 UPlatformerTraversalMovementComponent::UPlatformerTraversalMovementComponent()
@@ -156,6 +167,11 @@ void UPlatformerTraversalMovementComponent::ClearDeveloperTraversalSettingsOverr
 void UPlatformerTraversalMovementComponent::SetTraversalInputVector(FVector2D InTraversalInputVector)
 {
 	TraversalInputVector = InTraversalInputVector;
+
+	if (TraversalState == EPlatformerTraversalState::SlideDash && ShouldCancelSlideDashFromInput())
+	{
+		FinishSlideDash(true, false);
+	}
 }
 
 bool UPlatformerTraversalMovementComponent::HandleTraversalJumpPressed()
@@ -175,6 +191,12 @@ bool UPlatformerTraversalMovementComponent::HandleTraversalJumpPressed()
 	{
 		PerformWallKick();
 		return true;
+	}
+
+	if (TraversalState == EPlatformerTraversalState::SlideDash)
+	{
+		FinishSlideDash(true, false);
+		return false;
 	}
 
 	return false;
@@ -581,6 +603,22 @@ bool UPlatformerTraversalMovementComponent::ShouldUseFallingTraversal() const
 	return true;
 }
 
+bool UPlatformerTraversalMovementComponent::ShouldCancelSlideDashFromInput() const
+{
+	if (TraversalState != EPlatformerTraversalState::SlideDash)
+	{
+		return false;
+	}
+
+	const float HorizontalInput = TraversalInputVector.X;
+	if (FMath::Abs(HorizontalInput) <= 0.1f)
+	{
+		return false;
+	}
+
+	return HorizontalInput * SlideDashDirectionSign < 0.0f;
+}
+
 bool UPlatformerTraversalMovementComponent::RestoreCapsuleSizeIfPossible()
 {
 	if (!bDashCapsuleApplied || !CachedCapsuleState.bValid || !CharacterOwner)
@@ -705,6 +743,107 @@ bool UPlatformerTraversalMovementComponent::TryFindLedgeGrab(
 		return false;
 	}
 
+	if (TryFindTriggeredLedgeGrab(OutHangLocation, OutClimbTargetLocation, OutWallNormal))
+	{
+		return true;
+	}
+
+	return LedgeSettings.bUseLegacyWorldGeometryDetection
+		&& TryFindLegacyWorldLedgeGrab(OutHangLocation, OutClimbTargetLocation, OutWallNormal);
+}
+
+bool UPlatformerTraversalMovementComponent::TryFindTriggeredLedgeGrab(
+	FVector& OutHangLocation,
+	FVector& OutClimbTargetLocation,
+	FVector& OutWallNormal) const
+{
+	if (!CharacterOwner || !UpdatedComponent)
+	{
+		return false;
+	}
+
+	const APlatformerCharacterBase* PlatformerCharacter = Cast<APlatformerCharacterBase>(CharacterOwner);
+	if (!PlatformerCharacter)
+	{
+		return false;
+	}
+
+	const float DirectionSign = GetTraversalDirectionSign();
+	if (FMath::IsNearlyZero(DirectionSign))
+	{
+		return false;
+	}
+
+	const FPlatformerLedgeTraversalSettings& LedgeSettings = GetLedgeSettings();
+	TArray<APlatformerLedgeGrab*> CandidateLedgeGrabs;
+	PlatformerCharacter->GetAvailableLedgeGrabs(CandidateLedgeGrabs);
+	if (CandidateLedgeGrabs.IsEmpty())
+	{
+		return false;
+	}
+
+	const FVector CharacterLocation = UpdatedComponent->GetComponentLocation();
+	bool bFoundCandidate = false;
+	float BestCandidateDistanceSq = TNumericLimits<float>::Max();
+
+	for (APlatformerLedgeGrab* CandidateLedgeGrab : CandidateLedgeGrabs)
+	{
+		if (!IsValid(CandidateLedgeGrab))
+		{
+			continue;
+		}
+
+		FVector CandidateHangLocation = FVector::ZeroVector;
+		FVector CandidateClimbTargetLocation = FVector::ZeroVector;
+		FVector CandidateWallNormal = FVector::ZeroVector;
+		if (!CandidateLedgeGrab->TryBuildTraversalTargets(
+			*CharacterOwner,
+			DirectionSign,
+			LockedDepthY,
+			LedgeSettings,
+			CandidateHangLocation,
+			CandidateClimbTargetLocation,
+			CandidateWallNormal))
+		{
+			continue;
+		}
+
+		if (!CanUseFullCapsuleAt(CandidateClimbTargetLocation) || !HasWalkableFloorBelow(CandidateClimbTargetLocation))
+		{
+			continue;
+		}
+
+		const FVector CandidateDelta = CandidateHangLocation - CharacterLocation;
+		const float CandidateDistanceSq = FMath::Square(CandidateDelta.X) + FMath::Square(CandidateDelta.Z);
+		if (!bFoundCandidate || CandidateDistanceSq < BestCandidateDistanceSq)
+		{
+			bFoundCandidate = true;
+			BestCandidateDistanceSq = CandidateDistanceSq;
+			OutHangLocation = CandidateHangLocation;
+			OutClimbTargetLocation = CandidateClimbTargetLocation;
+			OutWallNormal = CandidateWallNormal;
+		}
+	}
+
+	return bFoundCandidate;
+}
+
+bool UPlatformerTraversalMovementComponent::TryFindLegacyWorldLedgeGrab(
+	FVector& OutHangLocation,
+	FVector& OutClimbTargetLocation,
+	FVector& OutWallNormal) const
+{
+	if (!bTraversalEnabled || !CharacterOwner || !UpdatedComponent)
+	{
+		return false;
+	}
+
+	const FPlatformerLedgeTraversalSettings& LedgeSettings = GetLedgeSettings();
+	if (!LedgeSettings.bEnabled || GetWorldTimeSafe() < LedgeReleaseLockoutEndTime)
+	{
+		return false;
+	}
+
 	const float DirectionSign = GetTraversalDirectionSign();
 	if (FMath::IsNearlyZero(DirectionSign))
 	{
@@ -730,9 +869,9 @@ bool UPlatformerTraversalMovementComponent::TryFindLedgeGrab(
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TraversalLedgeWallProbe), false, CharacterOwner);
-	FHitResult WallHit;
-	const bool bHitWall = GetWorld()->SweepSingleByObjectType(
-		WallHit,
+	TArray<FHitResult> WallHits;
+	const bool bHitAnyWall = GetWorld()->SweepMultiByObjectType(
+		WallHits,
 		WallProbeStart,
 		WallProbeEnd,
 		FQuat::Identity,
@@ -740,7 +879,29 @@ bool UPlatformerTraversalMovementComponent::TryFindLedgeGrab(
 		FCollisionShape::MakeSphere(LedgeSettings.ForwardProbeRadius),
 		QueryParams);
 
-	if (!bHitWall || FMath::Abs(WallHit.Normal.Z) > PlatformerTraversalPrivate::VerticalWallNormalThreshold)
+	FHitResult WallHit;
+	bool bFoundValidWallHit = false;
+	if (bHitAnyWall)
+	{
+		for (const FHitResult& CandidateWallHit : WallHits)
+		{
+			if (!PlatformerTraversalPrivate::IsTraversalBlockingSurfaceHit(CandidateWallHit))
+			{
+				continue;
+			}
+
+			if (FMath::Abs(CandidateWallHit.Normal.Z) > PlatformerTraversalPrivate::VerticalWallNormalThreshold)
+			{
+				continue;
+			}
+
+			WallHit = CandidateWallHit;
+			bFoundValidWallHit = true;
+			break;
+		}
+	}
+
+	if (!bFoundValidWallHit)
 	{
 		return false;
 	}
@@ -751,15 +912,37 @@ bool UPlatformerTraversalMovementComponent::TryFindLedgeGrab(
 		+ FVector(0.0f, 0.0f, LedgeSettings.MaxReachHeight);
 	const FVector TopTraceEnd = TopTraceStart - FVector(0.0f, 0.0f, LedgeSettings.MaxReachHeight + CapsuleHalfHeight + 48.0f);
 
-	FHitResult TopHit;
-	const bool bHitTop = GetWorld()->LineTraceSingleByObjectType(
-		TopHit,
+	TArray<FHitResult> TopHits;
+	const bool bHitAnyTop = GetWorld()->LineTraceMultiByObjectType(
+		TopHits,
 		TopTraceStart,
 		TopTraceEnd,
 		ObjectQueryParams,
 		QueryParams);
 
-	if (!bHitTop || TopHit.Normal.Z < GetWalkableFloorZ())
+	FHitResult TopHit;
+	bool bFoundValidTopHit = false;
+	if (bHitAnyTop)
+	{
+		for (const FHitResult& CandidateTopHit : TopHits)
+		{
+			if (!PlatformerTraversalPrivate::IsTraversalBlockingSurfaceHit(CandidateTopHit))
+			{
+				continue;
+			}
+
+			if (CandidateTopHit.Normal.Z < GetWalkableFloorZ())
+			{
+				continue;
+			}
+
+			TopHit = CandidateTopHit;
+			bFoundValidTopHit = true;
+			break;
+		}
+	}
+
+	if (!bFoundValidTopHit)
 	{
 		return false;
 	}
@@ -826,9 +1009,9 @@ bool UPlatformerTraversalMovementComponent::TryFindWallSlide(
 	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TraversalWallProbe), false, CharacterOwner);
-	FHitResult WallHit;
-	const bool bHitWall = GetWorld()->SweepSingleByObjectType(
-		WallHit,
+	TArray<FHitResult> WallHits;
+	const bool bHitAnyWall = GetWorld()->SweepMultiByObjectType(
+		WallHits,
 		ProbeStart,
 		ProbeEnd,
 		FQuat::Identity,
@@ -836,7 +1019,29 @@ bool UPlatformerTraversalMovementComponent::TryFindWallSlide(
 		FCollisionShape::MakeSphere(12.0f),
 		QueryParams);
 
-	if (!bHitWall || FMath::Abs(WallHit.Normal.Z) > PlatformerTraversalPrivate::VerticalWallNormalThreshold)
+	FHitResult WallHit;
+	bool bFoundValidWallHit = false;
+	if (bHitAnyWall)
+	{
+		for (const FHitResult& CandidateWallHit : WallHits)
+		{
+			if (!PlatformerTraversalPrivate::IsTraversalBlockingSurfaceHit(CandidateWallHit))
+			{
+				continue;
+			}
+
+			if (FMath::Abs(CandidateWallHit.Normal.Z) > PlatformerTraversalPrivate::VerticalWallNormalThreshold)
+			{
+				continue;
+			}
+
+			WallHit = CandidateWallHit;
+			bFoundValidWallHit = true;
+			break;
+		}
+	}
+
+	if (!bFoundValidWallHit)
 	{
 		return false;
 	}

@@ -182,7 +182,15 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperSettingsSnapshotIntoWidget
 
 	WorkingCopy.CharacterSettings = ResolvedCharacterSettings;
 	LoadDeveloperCharacterSettingsIntoWidgets(ResolvedCharacterSettings);
-	LoadDeveloperCameraManagerSettingsIntoWidgets(DeveloperSettingsSnapshot.CameraManagerSettings);
+
+	FDeveloperPlatformerCameraManagerSettings ResolvedCameraManagerSettings = DeveloperSettingsSnapshot.CameraManagerSettings;
+	if (!DeveloperSettingsSnapshot.bHasSavedCameraManagerSettings)
+	{
+		ResolvedCameraManagerSettings = CaptureDeveloperSettingsSnapshotFromRuntime().CameraManagerSettings;
+	}
+
+	WorkingCopy.CameraManagerSettings = ResolvedCameraManagerSettings;
+	LoadDeveloperCameraManagerSettingsIntoWidgets(ResolvedCameraManagerSettings);
 }
 
 void UPlatformerDeveloperSettingsWidget::LoadDeveloperCharacterSettingsIntoWidgets(const FDeveloperPlatformerCharacterSettings& DeveloperSettings)
@@ -262,6 +270,44 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperCameraManagerSettingsIntoW
 	{
 		CameraManager_VOffsetInterpSpeed->SetParameterValue(
 			DeveloperCameraManagerSettings.DeveloperCameraManagerVerticalOffsetInterpSpeed);
+	}
+
+	if (CameraManager_DeadZoneWidth)
+	{
+		CameraManager_DeadZoneWidth->SetParameterValue(DeveloperCameraManagerSettings.DeveloperCameraManagerDeadZoneWidth);
+	}
+
+	if (CameraManager_DeadZoneHeight)
+	{
+		CameraManager_DeadZoneHeight->SetParameterValue(DeveloperCameraManagerSettings.DeveloperCameraManagerDeadZoneHeight);
+	}
+
+	if (CameraManager_BoundBoxWidth)
+	{
+		CameraManager_BoundBoxWidth->SetParameterValue(DeveloperCameraManagerSettings.DeveloperCameraManagerBoundBoxWidth);
+	}
+
+	if (CameraManager_BoundBoxHeight)
+	{
+		CameraManager_BoundBoxHeight->SetParameterValue(DeveloperCameraManagerSettings.DeveloperCameraManagerBoundBoxHeight);
+	}
+
+	if (CameraManager_CrouchInterpSpeed)
+	{
+		CameraManager_CrouchInterpSpeed->SetParameterValue(
+			DeveloperCameraManagerSettings.DeveloperCameraManagerCrouchInterpSpeed);
+	}
+
+	if (Camera_IsOrthographic)
+	{
+		const bool bIsOrthographic =
+			DeveloperCameraManagerSettings.DeveloperCameraProjectionMode == EPlatformerCameraProjectionMode::Orthographic;
+		Camera_IsOrthographic->SetCheckboxValue(bIsOrthographic);
+	}
+
+	if (Camera_OrthoWidth)
+	{
+		Camera_OrthoWidth->SetParameterValue(DeveloperCameraManagerSettings.DeveloperCameraManagerOrthographicWidth);
 	}
 }
 
@@ -536,6 +582,7 @@ FPlatformerDeveloperSettingsSnapshot UPlatformerDeveloperSettingsWidget::Capture
 	if (APlatformerCameraManager* DeveloperTargetCameraManager = GetDeveloperTargetCameraManager())
 	{
 		DeveloperSettingsSnapshot.CameraManagerSettings = DeveloperTargetCameraManager->CaptureDeveloperCameraManagerSettings();
+		DeveloperSettingsSnapshot.bHasSavedCameraManagerSettings = true;
 	}
 
 	if (Common_AutoRestartLevel)
@@ -550,6 +597,20 @@ void UPlatformerDeveloperSettingsWidget::PatchWorkingCopyFromWidgets()
 {
 	WorkingCopy.CharacterSettings = BuildDeveloperCharacterSettingsFromWidgets(WorkingCopy.CharacterSettings);
 	WorkingCopy.CameraManagerSettings = BuildDeveloperCameraManagerSettingsFromWidgets(WorkingCopy.CameraManagerSettings);
+	WorkingCopy.bHasSavedCameraManagerSettings =
+		CameraManager_IdleSpeedThreshold
+		|| CameraManager_HOffset
+		|| CameraManager_HOffsetInterpSpeedStart
+		|| CameraManager_HOffsetInterpSpeedEnd
+		|| CameraManager_VOffset
+		|| CameraManager_VOffsetInterpSpeed
+		|| CameraManager_DeadZoneWidth
+		|| CameraManager_DeadZoneHeight
+		|| CameraManager_BoundBoxWidth
+		|| CameraManager_BoundBoxHeight
+		|| CameraManager_CrouchInterpSpeed
+		|| Camera_IsOrthographic
+		|| Camera_OrthoWidth;
 
 	if (HasDeveloperCombatWidgetBindings())
 	{
@@ -660,6 +721,50 @@ FDeveloperPlatformerCameraManagerSettings UPlatformerDeveloperSettingsWidget::Bu
 	{
 		DeveloperCameraManagerSettings.DeveloperCameraManagerVerticalOffsetInterpSpeed =
 			CameraManager_VOffsetInterpSpeed->GetEditableParameterValue();
+	}
+
+	if (CameraManager_DeadZoneWidth)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraManagerDeadZoneWidth =
+			CameraManager_DeadZoneWidth->GetEditableParameterValue();
+	}
+
+	if (CameraManager_DeadZoneHeight)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraManagerDeadZoneHeight =
+			CameraManager_DeadZoneHeight->GetEditableParameterValue();
+	}
+
+	if (CameraManager_BoundBoxWidth)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraManagerBoundBoxWidth =
+			CameraManager_BoundBoxWidth->GetEditableParameterValue();
+	}
+
+	if (CameraManager_BoundBoxHeight)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraManagerBoundBoxHeight =
+			CameraManager_BoundBoxHeight->GetEditableParameterValue();
+	}
+
+	if (CameraManager_CrouchInterpSpeed)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraManagerCrouchInterpSpeed =
+			CameraManager_CrouchInterpSpeed->GetEditableParameterValue();
+	}
+
+	if (Camera_IsOrthographic)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraProjectionMode =
+			Camera_IsOrthographic->GetCheckboxValue()
+				? EPlatformerCameraProjectionMode::Orthographic
+				: EPlatformerCameraProjectionMode::Perspective;
+	}
+
+	if (Camera_OrthoWidth)
+	{
+		DeveloperCameraManagerSettings.DeveloperCameraManagerOrthographicWidth =
+			Camera_OrthoWidth->GetEditableParameterValue();
 	}
 
 	return DeveloperCameraManagerSettings;

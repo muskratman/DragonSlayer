@@ -32,6 +32,7 @@ void UGA_PlatformerJump::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
 		if (Character)
 		{
+			Character->JumpMaxHoldTime = FMath::Max(0.0f, JumpMaxHoldTime);
 			Character->Jump();
 		}
 	}

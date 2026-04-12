@@ -1,10 +1,10 @@
 #include "Platformer/Environment/PlatformerLadder.h"
 
 #include "Character/PlatformerCharacterBase.h"
-#include "Platformer/Environment/PlatformerEnvironmentHelpers.h"
 #include "Components/BoxComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
-#include "Components/StaticMeshComponent.h"
+#include "Platformer/Environment/PlatformerEnvironmentHelpers.h"
 #include "UObject/ConstructorHelpers.h"
 
 APlatformerLadder::APlatformerLadder()
@@ -17,14 +17,15 @@ APlatformerLadder::APlatformerLadder()
 	LadderMeshLayoutRoot = CreateDefaultSubobject<USceneComponent>(TEXT("LadderMeshLayoutRoot"));
 	LadderMeshLayoutRoot->SetupAttachment(Root);
 
-	LadderMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LadderMesh"));
-	LadderMesh->SetupAttachment(LadderMeshLayoutRoot);
-	LadderMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LadderMeshInstances = CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(TEXT("LadderMeshInstances"));
+	LadderMeshInstances->SetupAttachment(LadderMeshLayoutRoot);
+	LadderMeshInstances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LadderMeshInstances->SetCanEverAffectNavigation(false);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (CubeMesh.Succeeded())
 	{
-		LadderMesh->SetStaticMesh(CubeMesh.Object);
+		LadderMeshInstances->SetStaticMesh(CubeMesh.Object);
 	}
 
 	ClimbVolumeLayoutRoot = CreateDefaultSubobject<USceneComponent>(TEXT("ClimbVolumeLayoutRoot"));
@@ -50,17 +51,48 @@ void APlatformerLadder::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	const FVector ResolvedLadderSize = LadderSize.ComponentMax(FVector(1.0f, 1.0f, 1.0f));
+	FPlatformerComponentTransformOffset ResolvedVisualOffset = LadderMeshTransformOffset;
+	ResolvedVisualOffset.RelativeScale3D = FVector::OneVector;
+
 	PlatformerEnvironment::ApplyRelativeTransform(
 		LadderMeshLayoutRoot,
-		FVector(0.0f, 0.0f, LadderSize.Z * 0.5f),
+		FVector(0.0f, 0.0f, ResolvedLadderSize.Z * 0.5f),
 		FRotator::ZeroRotator,
-		LadderSize / 100.0f,
-		LadderMeshTransformOffset);
+		FVector::OneVector,
+		ResolvedVisualOffset);
 
-	ClimbVolume->SetBoxExtent(LadderSize * 0.5f);
+	if (LadderMeshInstances)
+	{
+		LadderMeshInstances->ClearInstances();
+
+		if (const UStaticMesh* LadderStaticMesh = LadderMeshInstances->GetStaticMesh())
+		{
+			const FVector MeshSize = (LadderStaticMesh->GetBounds().BoxExtent * 2.0f).ComponentMax(FVector(1.0f, 1.0f, 1.0f));
+			const FVector InstanceScale(
+				ResolvedLadderSize.X / MeshSize.X,
+				1.0f,
+				1.0f);
+			const float EffectiveTileHeight = MeshSize.Z;
+			const int32 TileCount = FMath::Max(1, FMath::CeilToInt(ResolvedLadderSize.Z / EffectiveTileHeight));
+			const float LocalStartZ = (-0.5f * ResolvedLadderSize.Z) + (0.5f * EffectiveTileHeight);
+			const float LocalStepZ = EffectiveTileHeight;
+
+			for (int32 TileIndex = 0; TileIndex < TileCount; ++TileIndex)
+			{
+				const FTransform InstanceTransform(
+					FRotator::ZeroRotator,
+					FVector(0.0f, 0.0f, LocalStartZ + (TileIndex * LocalStepZ)),
+					InstanceScale);
+				LadderMeshInstances->AddInstance(InstanceTransform);
+			}
+		}
+	}
+
+	ClimbVolume->SetBoxExtent(ResolvedLadderSize * 0.5f);
 	PlatformerEnvironment::ApplyRelativeTransform(
 		ClimbVolumeLayoutRoot,
-		FVector(0.0f, 0.0f, LadderSize.Z * 0.5f),
+		FVector(0.0f, 0.0f, ResolvedLadderSize.Z * 0.5f),
 		FRotator::ZeroRotator,
 		FVector::OneVector,
 		ClimbVolumeTransformOffset);

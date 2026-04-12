@@ -4,6 +4,13 @@
 #include "Traversal/PlatformerTraversalTypes.h"
 #include "DeveloperPlatformerSettingsTypes.generated.h"
 
+UENUM(BlueprintType)
+enum class EPlatformerCameraProjectionMode : uint8
+{
+	Perspective = 0,
+	Orthographic
+};
+
 USTRUCT(BlueprintType)
 struct COOKIEBROSPLATFORMER_API FDeveloperPlatformerCameraSettings
 {
@@ -134,6 +141,12 @@ struct COOKIEBROSPLATFORMER_API FDeveloperPlatformerCameraManagerSettings
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	EPlatformerCameraProjectionMode DeveloperCameraProjectionMode = EPlatformerCameraProjectionMode::Perspective;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperCameraManagerOrthographicWidth = 2048.0f;
+
 	// Stored in m/s for designer-facing editing and converted to the manager's cm/s runtime property.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
 	float DeveloperCameraManagerIdleSpeedThreshold = 0.05f;
@@ -152,6 +165,21 @@ struct COOKIEBROSPLATFORMER_API FDeveloperPlatformerCameraManagerSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
 	float DeveloperCameraManagerVerticalOffsetInterpSpeed = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperCameraManagerDeadZoneWidth = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperCameraManagerDeadZoneHeight = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperCameraManagerBoundBoxWidth = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperCameraManagerBoundBoxHeight = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperCameraManagerCrouchInterpSpeed = 8.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -164,6 +192,9 @@ struct COOKIEBROSPLATFORMER_API FPlatformerDeveloperSettingsSnapshot
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
 	FDeveloperPlatformerCameraManagerSettings CameraManagerSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	bool bHasSavedCameraManagerSettings = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
 	bool bHasSavedCombatSettings = false;

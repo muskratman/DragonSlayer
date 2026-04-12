@@ -2,7 +2,6 @@
 
 #include "Character/DragonFormComponent.h"
 #include "GAS/Abilities/GA_PlatformerDash.h"
-#include "GAS/Abilities/GA_PlatformerSlideDash.h"
 #include "GAS/Abilities/GA_DragonBaseShot.h"
 #include "GAS/Abilities/GA_DragonChargeShot.h"
 #include "Character/SideViewMovementComponent.h"
@@ -56,9 +55,9 @@ UPlatformerTraversalMovementComponent* APlayableDragonCharacter::GetTraversalMov
 TSubclassOf<UGameplayAbility> APlayableDragonCharacter::ResolveDashAbilityClass() const
 {
 	TSubclassOf<UGameplayAbility> ResolvedDashAbilityClass = DashAbilityClass;
-	if (!ResolvedDashAbilityClass || ResolvedDashAbilityClass == UGA_PlatformerDash::StaticClass())
+	if (!ResolvedDashAbilityClass)
 	{
-		ResolvedDashAbilityClass = UGA_PlatformerSlideDash::StaticClass();
+		ResolvedDashAbilityClass = UGA_PlatformerDash::StaticClass();
 	}
 
 	return ResolvedDashAbilityClass;
@@ -410,26 +409,34 @@ void APlayableDragonCharacter::Input_Move(const FInputActionValue& Value)
 
 void APlayableDragonCharacter::Input_JumpStart(const FInputActionValue& Value)
 {
+	bool bCanceledSlideDashForJump = false;
+
 	if (UPlatformerTraversalMovementComponent* TraversalMovementComponent = GetTraversalMovementComponent())
 	{
+		const bool bWasSlideDashing = TraversalMovementComponent->IsSlideDashing();
 		if (TraversalMovementComponent->HandleTraversalJumpPressed())
 		{
 			return;
 		}
+
+		bCanceledSlideDashForJump = bWasSlideDashing && !TraversalMovementComponent->IsSlideDashing();
 	}
 
-	if (IsOnLadder())
+	if (!bCanceledSlideDashForJump && IsOnLadder())
 	{
 		bLadderClimbUpHeld = true;
 		return;
 	}
 
-	if (APlatformerLadder* CandidateLadder = GetAvailableLadder())
+	if (!bCanceledSlideDashForJump)
 	{
-		if (EnterLadder(CandidateLadder))
+		if (APlatformerLadder* CandidateLadder = GetAvailableLadder())
 		{
-			bLadderClimbUpHeld = true;
-			return;
+			if (EnterLadder(CandidateLadder))
+			{
+				bLadderClimbUpHeld = true;
+				return;
+			}
 		}
 	}
 

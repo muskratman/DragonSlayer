@@ -25,6 +25,7 @@ FPlatformerDeveloperSettingsSnapshot USaveDeveloperSettings::ResolveSnapshot() c
 	FPlatformerDeveloperSettingsSnapshot LegacySnapshot;
 	LegacySnapshot.CharacterSettings = DeveloperCharacterSettings;
 	LegacySnapshot.CameraManagerSettings = DeveloperCameraManagerSettings;
+	LegacySnapshot.bHasSavedCameraManagerSettings = true;
 	LegacySnapshot.bHasSavedCombatSettings = bHasSavedDeveloperCombatSettings;
 	LegacySnapshot.bAutoRestartLevel = bAutoRestartLevel;
 	return LegacySnapshot;

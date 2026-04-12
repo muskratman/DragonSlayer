@@ -9,6 +9,15 @@
 
 class APawn;
 
+/** Camera follow state for the dead zone / follow camera state machine. */
+enum class EPlatformerCameraFollowState : uint8
+{
+	/** Camera does not follow — character moves freely inside the dead zone rectangle. */
+	DeadZone,
+	/** Camera follows the character with directional look-ahead offset. */
+	Following
+};
+
 /**
  *  Simple platformer camera with smooth scrolling and movement-based look-ahead.
  */
@@ -30,6 +39,9 @@ protected:
 
 	/** Resolves the baseline camera pose from the pawn's actual camera setup in the Blueprint hierarchy. */
 	void ResolveBaseCameraPose(const APawn& TargetPawn, FVector& OutLocation, FRotator& OutRotation, float& OutFOV) const;
+	FVector ResolveCameraFocusLocation(const APawn& TargetPawn) const;
+	bool IsOrthographicProjectionEnabled() const;
+	void SyncProjectionSettings(APawn& TargetPawn);
 
 	/** Converts current movement into a normalized look-ahead direction in the visible platforming plane. */
 	FVector2D ResolveMovementDirection2D(const FVector& Velocity) const;
@@ -37,9 +49,15 @@ protected:
 
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Platformer Camera|Projection")
+	EPlatformerCameraProjectionMode CameraProjectionMode = EPlatformerCameraProjectionMode::Perspective;
+
 	/** How close we want to stay to the view target */
 	UPROPERTY(EditAnywhere, Category="Platformer Camera", meta=(ClampMin=0, ClampMax=10000, Units="cm"))
 	float CurrentZoom = 1000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Platformer Camera|Projection", meta=(ClampMin=1.0, ClampMax=100000.0, Units="cm"))
+	float OrthographicWidth = 2048.0f;
 
 	/** How far above the target do we want the camera to focus */
 	UPROPERTY(EditAnywhere, Category="Platformer Camera", meta=(ClampMin=0, ClampMax=10000, Units="cm"))
@@ -73,6 +91,24 @@ public:
 	UPROPERTY(EditAnywhere, Category="Platformer Camera|Smoothing", meta=(ClampMin=0.0f, ClampMax=100.0f))
 	float VerticalOffsetInterpSpeed = 2.0f;
 
+	/** How fast the camera adjusts vertically to instant changes in capsule height (like crouching) */
+	UPROPERTY(EditAnywhere, Category="Platformer Camera|Smoothing", meta=(ClampMin=0.0f, ClampMax=100.0f))
+	float CrouchInterpSpeed = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Platformer Camera|Dead Zone", meta=(ClampMin=0.0, ClampMax=100000.0, Units="cm"))
+	float CameraDeadZoneWidth = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Platformer Camera|Dead Zone", meta=(ClampMin=0.0, ClampMax=100000.0, Units="cm"))
+	float CameraDeadZoneHeight = 0.0f;
+
+	/** Outer bounding box width. The character cannot visually exceed this distance horizontally on the screen, forcing the camera to rigidly push. Set to 0 to disable. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Platformer Camera|Bound Box", meta=(ClampMin=0.0, ClampMax=100000.0, Units="cm"))
+	float CameraBoundBoxWidth = 0.0f;
+
+	/** Outer bounding box height. The character cannot visually exceed this distance vertically on the screen, forcing the camera to rigidly push. Set to 0 to disable. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Platformer Camera|Bound Box", meta=(ClampMin=0.0, ClampMax=100000.0, Units="cm"))
+	float CameraBoundBoxHeight = 0.0f;
+
 protected:
 
 	/** Current interpolated horizontal offset for look-ahead functionality */
@@ -80,4 +116,31 @@ protected:
 
 	/** Current interpolated vertical offset for look-ahead functionality */
 	float CurrentVerticalOffset = 0.0f;
+
+	/** Smoothed camera rig offset from the camera focus point. */
+	FVector CurrentCameraRigOffset = FVector::ZeroVector;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<APawn> DeadZoneTrackedPawn;
+
+	/** Current dead zone / follow camera state. */
+	EPlatformerCameraFollowState CameraFollowState = EPlatformerCameraFollowState::DeadZone;
+
+	/** Center of the dead zone rectangle in world space. Fixed during DeadZone state, tracks character during Following. */
+	UPROPERTY(Transient)
+	FVector DeadZoneCenter = FVector::ZeroVector;
+
+	/** Character's displacement from camera center due to dead zone.
+	  * In DeadZone state: tracks character offset from DeadZoneCenter (camera stays at center).
+	  * In Following state: smoothly interpolates to zero (camera catches up to character). */
+	FVector CurrentDeadZoneOffset = FVector::ZeroVector;
+
+	/** Smoothed vertical focus Z — prevents camera snap on capsule height changes (crouch/stand). */
+	float SmoothedFocusLocationZ = 0.0f;
+
+	UPROPERTY(Transient)
+	bool bIsDeadZoneInitialized = false;
+
+	UPROPERTY(Transient)
+	bool bHasCameraRigOffset = false;
 };

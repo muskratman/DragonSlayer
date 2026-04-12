@@ -131,12 +131,15 @@ private:
 	const FPlatformerSlideDashSettings& GetSlideDashSettings() const;
 	const FPlatformerWallTraversalSettings& GetWallSettings() const;
 	bool ShouldUseFallingTraversal() const;
+	bool ShouldCancelSlideDashFromInput() const;
 	bool RestoreCapsuleSizeIfPossible();
 	void ApplySlideDashCapsule();
 	bool CanUseFullCapsuleAt(const FVector& TestLocation) const;
 	bool HasWalkableFloorBelow(const FVector& TestLocation) const;
 
 	bool TryFindLedgeGrab(FVector& OutHangLocation, FVector& OutClimbTargetLocation, FVector& OutWallNormal) const;
+	bool TryFindTriggeredLedgeGrab(FVector& OutHangLocation, FVector& OutClimbTargetLocation, FVector& OutWallNormal) const;
+	bool TryFindLegacyWorldLedgeGrab(FVector& OutHangLocation, FVector& OutClimbTargetLocation, FVector& OutWallNormal) const;
 	bool TryFindWallSlide(FVector& OutWallNormal, FVector& OutAnchorLocation, AActor*& OutWallActor) const;
 
 	void EnterLedgeHang(const FVector& HangLocation, const FVector& ClimbTargetLocation, const FVector& WallNormal);

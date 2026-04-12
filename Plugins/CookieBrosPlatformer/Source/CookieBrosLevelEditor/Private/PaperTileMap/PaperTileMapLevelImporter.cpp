@@ -15,6 +15,7 @@
 #include "PaperTileMap.h"
 #include "PaperTileSet.h"
 #include "Platformer/Environment/PlatformerBlock.h"
+#include "Platformer/Environment/PlatformerBlockBase.h"
 #include "Platformer/Environment/PlatformerConveyor.h"
 #include "Platformer/Environment/PlatformerDangerBlock.h"
 #include "Platformer/Environment/PlatformerGravityVolume.h"
@@ -269,7 +270,7 @@ namespace CookieBrosPaperTileMapImport
 			return EImportedActorKind::Switch;
 		}
 
-		if ((ActorClass != nullptr) && ActorClass->IsChildOf(APlatformerBlock::StaticClass()))
+		if ((ActorClass != nullptr) && ActorClass->IsChildOf(APlatformerBlockBase::StaticClass()))
 		{
 			return EImportedActorKind::Block;
 		}
@@ -671,9 +672,13 @@ namespace CookieBrosPaperTileMapImport
 			break;
 
 		case EImportedActorKind::Block:
+			if (APlatformerBlockBase* BlockBase = Cast<APlatformerBlockBase>(&SpawnedActor))
+			{
+				BlockBase->SetBlockSize(ResolvedSolidActorSize);
+			}
+
 			if (APlatformerBlock* Block = Cast<APlatformerBlock>(&SpawnedActor))
 			{
-				Block->SetBlockSize(ResolvedSolidActorSize);
 				Block->SetBlockMeshVariant(PreparedSpawn.BlockMeshVariant);
 			}
 			break;
@@ -788,6 +793,29 @@ namespace CookieBrosPaperTileMapImport
 		case EImportedActorKind::GenericActor:
 		default:
 			return PreparedSpawn.LocalSpawnTransform.GetLocation().Z;
+		}
+	}
+
+	bool ShouldActorKindContributeToKillZ(EImportedActorKind ActorKind)
+	{
+		switch (ActorKind)
+		{
+		case EImportedActorKind::Block:
+		case EImportedActorKind::SoftPlatform:
+		case EImportedActorKind::Spikes:
+		case EImportedActorKind::Ramp:
+		case EImportedActorKind::Ladder:
+		case EImportedActorKind::MovingPlatform:
+		case EImportedActorKind::TriggeredLift:
+			return true;
+
+		case EImportedActorKind::PlayerStart:
+		case EImportedActorKind::Stream:
+		case EImportedActorKind::GravityVolume:
+		case EImportedActorKind::Switch:
+		case EImportedActorKind::GenericActor:
+		default:
+			return false;
 		}
 	}
 
@@ -1014,6 +1042,32 @@ namespace CookieBrosPaperTileMapImport
 			}
 		}
 		(void)PrimaryPlayerStartIndex;
+
+		bool bHasLowestTileWorldZ = false;
+		float LowestTileWorldZ = 0.0f;
+		for (const FPreparedSpawn& PreparedSpawn : PreparedSpawns)
+		{
+			if (!ShouldActorKindContributeToKillZ(PreparedSpawn.SpawnRecipe.ActorKind))
+			{
+				continue;
+			}
+
+			const float TileWorldZ = PreparedSpawn.LocalSpawnTransform.GetLocation().Z + LevelTranslation.Z;
+			if (!bHasLowestTileWorldZ || (TileWorldZ < LowestTileWorldZ))
+			{
+				bHasLowestTileWorldZ = true;
+				LowestTileWorldZ = TileWorldZ;
+			}
+		}
+
+		if (bHasLowestTileWorldZ)
+		{
+			if (AWorldSettings* WorldSettings = World->GetWorldSettings())
+			{
+				WorldSettings->Modify();
+				WorldSettings->KillZ = LowestTileWorldZ - 500.0f;
+			}
+		}
 
 		const TArray<FPreparedSpawn> FinalPreparedSpawns = BuildMergedPreparedSpawns(PreparedSpawns);
 

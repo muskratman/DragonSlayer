@@ -10,6 +10,7 @@ class UPlatformerAbilitySet;
 class USpringArmComponent;
 class UCameraComponent;
 class APlatformerLadder;
+class APlatformerLedgeGrab;
 class UDamageType;
 
 /**
@@ -36,12 +37,16 @@ public:
 	virtual void InitializeAbilities(const UPlatformerAbilitySet* AbilitySet);
 	virtual void NotifyLadderAvailable(APlatformerLadder* Ladder);
 	virtual void NotifyLadderUnavailable(APlatformerLadder* Ladder);
+	virtual void NotifyLedgeGrabAvailable(APlatformerLedgeGrab* LedgeGrab);
+	virtual void NotifyLedgeGrabUnavailable(APlatformerLedgeGrab* LedgeGrab);
 	virtual bool EnterLadder(APlatformerLadder* Ladder);
 	virtual void ExitLadder(APlatformerLadder* Ladder = nullptr);
+	virtual void GetAvailableLedgeGrabs(TArray<APlatformerLedgeGrab*>& OutLedgeGrabs) const;
 	virtual void ApplyDeveloperCharacterSettings(const FDeveloperPlatformerCharacterSettings& DeveloperSettings);
 	virtual void ApplyDeveloperSettingsSnapshot(const FPlatformerDeveloperSettingsSnapshot& DeveloperSettingsSnapshot);
 	virtual FDeveloperPlatformerCharacterSettings CaptureDeveloperCharacterSettings() const;
 	virtual FPlatformerDeveloperSettingsSnapshot CaptureDeveloperSettingsSnapshot() const;
+	virtual FVector GetPlatformerCameraFocusLocation() const;
 
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
@@ -76,6 +81,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<APlatformerLadder> AvailableLadder;
+
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<APlatformerLedgeGrab>> AvailableLedgeGrabs;
 
 	UPROPERTY(Transient)
 	bool bIsOnLadder = false;

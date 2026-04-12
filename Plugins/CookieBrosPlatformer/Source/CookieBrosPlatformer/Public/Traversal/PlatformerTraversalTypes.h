@@ -40,6 +40,9 @@ struct COOKIEBROSPLATFORMER_API FPlatformerLedgeTraversalSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category="Ledge")
 	bool bEnabled = true;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category="Ledge|Legacy")
+	bool bUseLegacyWorldGeometryDetection = false;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(ClampMin="0.0", Units="cm"))
 	float DetectionDistance = 72.0f;
 

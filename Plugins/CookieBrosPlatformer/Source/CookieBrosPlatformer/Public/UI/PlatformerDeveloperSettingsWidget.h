@@ -88,6 +88,27 @@ protected:
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UDeveloperParameterWidget> CameraManager_VOffsetInterpSpeed;
 
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> CameraManager_DeadZoneWidth;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> CameraManager_DeadZoneHeight;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> CameraManager_BoundBoxWidth;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> CameraManager_BoundBoxHeight;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> CameraManager_CrouchInterpSpeed;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperCheckboxWidget> Camera_IsOrthographic;
+
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> Camera_OrthoWidth;
+
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UDeveloperParameterWidget> Movement_MaxWalkSpeed;
 

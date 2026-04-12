@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Platformer/Environment/PlatformerBlock.h"
+#include "Platformer/Environment/PlatformerBlockBase.h"
 #include "PlatformerStairs.generated.h"
 
 /**
@@ -9,7 +9,7 @@
  * Uses the standard block import path but remains a distinct class for separate visuals.
  */
 UCLASS()
-class COOKIEBROSPLATFORMER_API APlatformerStairs : public APlatformerBlock
+class COOKIEBROSPLATFORMER_API APlatformerStairs : public APlatformerBlockBase
 {
 	GENERATED_BODY()
 
