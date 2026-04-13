@@ -1,10 +1,11 @@
 #pragma once
-
-#include "CoreMinimal.h"
+//
 #include "Combat/PlatformerCombatCharacterBase.h"
+#include "CoreMinimal.h"
 #include "Developer/DeveloperPlatformerSettingsTypes.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "PlatformerCharacterBase.generated.h"
+
 
 class UPlatformerAbilitySet;
 class UGA_PlatformerJump;
@@ -17,139 +18,170 @@ class UDamageType;
 
 /**
  * APlatformerCharacterBase
- * Generic playable platformer shell with camera rig, side-view movement, and combat bootstrap.
+ * Generic playable platformer shell with camera rig, side-view movement, and
+ * combat bootstrap.
  */
 UCLASS(Abstract)
-class COOKIEBROSPLATFORMER_API APlatformerCharacterBase : public APlatformerCombatCharacterBase
-{
-	GENERATED_BODY()
+class COOKIEBROSPLATFORMER_API APlatformerCharacterBase
+    : public APlatformerCombatCharacterBase {
+  GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
-	TObjectPtr<USpringArmComponent> CameraBoom;
+  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components",
+            meta = (AllowPrivateAccess = "true"))
+  TObjectPtr<USpringArmComponent> CameraBoom;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta=(AllowPrivateAccess="true"))
-	TObjectPtr<UCameraComponent> FollowCamera;
+  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components",
+            meta = (AllowPrivateAccess = "true"))
+  TObjectPtr<UCameraComponent> FollowCamera;
 
-	UPROPERTY(EditDefaultsOnly, Category="Abilities")
-	TObjectPtr<UPlatformerAbilitySet> DefaultAbilitySet;
+  UPROPERTY(EditDefaultsOnly, Category = "Abilities")
+  TObjectPtr<UPlatformerAbilitySet> DefaultAbilitySet;
 
-	UPROPERTY(EditDefaultsOnly, Category="Developer|Jump Preview")
-	TSubclassOf<ADeveloperJumpTrajectory> DeveloperJumpTrajectoryClass;
+  UPROPERTY(EditDefaultsOnly, Category = "Developer|Jump Preview")
+  TSubclassOf<ADeveloperJumpTrajectory> DeveloperJumpTrajectoryClass;
 
 public:
-	APlatformerCharacterBase(const FObjectInitializer& ObjectInitializer);
+  APlatformerCharacterBase(const FObjectInitializer &ObjectInitializer);
 
-	virtual void InitializeAbilities(const UPlatformerAbilitySet* AbilitySet);
-	virtual void NotifyLadderAvailable(APlatformerLadder* Ladder);
-	virtual void NotifyLadderUnavailable(APlatformerLadder* Ladder);
-	virtual void NotifyLedgeGrabAvailable(APlatformerLedgeGrab* LedgeGrab);
-	virtual void NotifyLedgeGrabUnavailable(APlatformerLedgeGrab* LedgeGrab);
-	virtual bool EnterLadder(APlatformerLadder* Ladder);
-	virtual void ExitLadder(APlatformerLadder* Ladder = nullptr);
-	virtual void GetAvailableLedgeGrabs(TArray<APlatformerLedgeGrab*>& OutLedgeGrabs) const;
-	virtual void ApplyDeveloperCharacterSettings(const FDeveloperPlatformerCharacterSettings& DeveloperSettings);
-	virtual void ApplyDeveloperSettingsSnapshot(const FPlatformerDeveloperSettingsSnapshot& DeveloperSettingsSnapshot);
-	virtual FDeveloperPlatformerCharacterSettings CaptureDeveloperCharacterSettings() const;
-	virtual FPlatformerDeveloperSettingsSnapshot CaptureDeveloperSettingsSnapshot() const;
-	virtual FVector GetPlatformerCameraFocusLocation() const;
-	UFUNCTION(BlueprintCallable, Category="Developer|Jump Preview")
-	ADeveloperJumpTrajectory* SpawnJumpTrajectorySnapshotActor();
+  virtual void InitializeAbilities(const UPlatformerAbilitySet *AbilitySet);
+  virtual void NotifyLadderAvailable(APlatformerLadder *Ladder);
+  virtual void NotifyLadderUnavailable(APlatformerLadder *Ladder);
+  virtual void NotifyLedgeGrabAvailable(APlatformerLedgeGrab *LedgeGrab);
+  virtual void NotifyLedgeGrabUnavailable(APlatformerLedgeGrab *LedgeGrab);
+  virtual bool EnterLadder(APlatformerLadder *Ladder);
+  virtual void ExitLadder(APlatformerLadder *Ladder = nullptr);
+  virtual void
+  GetAvailableLedgeGrabs(TArray<APlatformerLedgeGrab *> &OutLedgeGrabs) const;
+  virtual void ApplyDeveloperCharacterSettings(
+      const FDeveloperPlatformerCharacterSettings &DeveloperSettings);
+  virtual void ApplyDeveloperSettingsSnapshot(
+      const FPlatformerDeveloperSettingsSnapshot &DeveloperSettingsSnapshot);
+  virtual FDeveloperPlatformerCharacterSettings
+  CaptureDeveloperCharacterSettings() const;
+  virtual FPlatformerDeveloperSettingsSnapshot
+  CaptureDeveloperSettingsSnapshot() const;
+  virtual FVector GetPlatformerCameraFocusLocation() const;
+  UFUNCTION(BlueprintCallable, Category = "Developer|Jump Preview")
+  ADeveloperJumpTrajectory *SpawnJumpTrajectorySnapshotActor();
 
-	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	FORCEINLINE bool IsOnLadder() const { return bIsOnLadder; }
-	FORCEINLINE APlatformerLadder* GetActiveLadder() const { return ActiveLadder; }
-	FORCEINLINE APlatformerLadder* GetAvailableLadder() const { return AvailableLadder; }
-	FORCEINLINE bool HasDeveloperCrouchCapsuleScaleOverride() const { return bHasDeveloperCrouchCapsuleScaleOverride; }
-	FORCEINLINE bool HasDeveloperJumpHorizontalSpeedOverride() const { return bHasDeveloperJumpHorizontalSpeedOverride; }
-	float ResolveDeveloperCrouchCapsuleScale(float DefaultCrouchCapsuleScale) const;
-	float ResolveDeveloperJumpHorizontalSpeed(float DefaultJumpHorizontalSpeed) const;
-	bool HasActiveDeveloperCombatSettings() const;
-	const FDeveloperPlatformerCombatSettings& GetActiveDeveloperCombatSettings() const;
+  FORCEINLINE UCameraComponent *GetFollowCamera() const { return FollowCamera; }
+  FORCEINLINE USpringArmComponent *GetCameraBoom() const { return CameraBoom; }
+  FORCEINLINE bool IsOnLadder() const { return bIsOnLadder; }
+  FORCEINLINE APlatformerLadder *GetActiveLadder() const {
+    return ActiveLadder;
+  }
+  FORCEINLINE APlatformerLadder *GetAvailableLadder() const {
+    return AvailableLadder;
+  }
+  FORCEINLINE bool HasDeveloperCrouchCapsuleScaleOverride() const {
+    return bHasDeveloperCrouchCapsuleScaleOverride;
+  }
+  FORCEINLINE bool HasDeveloperJumpHorizontalSpeedOverride() const {
+    return bHasDeveloperJumpHorizontalSpeedOverride;
+  }
+  float
+  ResolveDeveloperCrouchCapsuleScale(float DefaultCrouchCapsuleScale) const;
+  float
+  ResolveDeveloperJumpHorizontalSpeed(float DefaultJumpHorizontalSpeed) const;
+  bool HasActiveDeveloperCombatSettings() const;
+  const FDeveloperPlatformerCombatSettings &
+  GetActiveDeveloperCombatSettings() const;
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaTime) override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	virtual void FellOutOfWorld(const UDamageType& DamageType) override;
-	virtual void OnCombatDeath(AActor* DamageInstigatorActor) override;
-	virtual void OnCombatRevived() override;
-	virtual void OnEnteredLadder(APlatformerLadder* Ladder);
-	virtual void OnExitedLadder(APlatformerLadder* Ladder);
-	virtual void ApplyDeveloperCameraSettings(const FDeveloperPlatformerCameraSettings& DeveloperCameraSettings);
-	virtual FDeveloperPlatformerCameraSettings CaptureDeveloperCameraSettings() const;
-	virtual void ApplyDeveloperCharacterMovementSettings(const FDeveloperPlatformerCharacterMovementSettings& DeveloperCharacterMovementSettings);
-	virtual FDeveloperPlatformerCharacterMovementSettings CaptureDeveloperCharacterMovementSettings() const;
-	virtual void ApplyDeveloperCombatSettings(const FDeveloperPlatformerCombatSettings& DeveloperCombatSettings);
-	virtual FDeveloperPlatformerCombatSettings CaptureDeveloperCombatSettings() const;
-	virtual float GetHealthWidgetVerticalPadding() const override;
-	void SetShowJumpTrajectoryPreview(bool bInShowJumpTrajectoryPreview);
-	ADeveloperJumpTrajectory* EnsureDeveloperJumpTrajectoryActor();
-	void DestroyDeveloperJumpTrajectoryActor();
-	void SetDeveloperCrouchCapsuleScaleOverride(float InCrouchCapsuleScale);
-	void ClearDeveloperCrouchCapsuleScaleOverride();
-	void SetDeveloperJumpHorizontalSpeedOverride(float InJumpHorizontalSpeed);
-	void ClearDeveloperJumpHorizontalSpeedOverride();
-	float CaptureDeveloperCrouchCapsuleScale() const;
-	float CaptureDeveloperJumpHorizontalSpeed() const;
-	float ResolveDefaultCrouchCapsuleScale() const;
-	float ResolveStandingCapsuleHalfHeight() const;
-	void ApplyResolvedCrouchCapsuleScale();
-	const UGA_PlatformerJump* FindGrantedJumpAbility() const;
-	void RefreshJumpTrajectoryPreview();
-	FDeveloperPlatformerCombatSettings ResolveDeveloperCombatSettingsForApplication(const FDeveloperPlatformerCombatSettings& DeveloperCombatSettings) const;
-	void LoadAndApplyDeveloperSettings();
-	void SetHasActiveDeveloperCombatSettings(bool bInHasActiveDeveloperCombatSettings);
+  virtual void BeginPlay() override;
+  virtual void Tick(float DeltaTime) override;
+  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+  virtual void
+  SetupPlayerInputComponent(UInputComponent *PlayerInputComponent) override;
+  virtual void FellOutOfWorld(const UDamageType &DamageType) override;
+  virtual void OnCombatDeath(AActor *DamageInstigatorActor) override;
+  virtual void OnCombatRevived() override;
+  virtual void OnEnteredLadder(APlatformerLadder *Ladder);
+  virtual void OnExitedLadder(APlatformerLadder *Ladder);
+  virtual void ApplyDeveloperCameraSettings(
+      const FDeveloperPlatformerCameraSettings &DeveloperCameraSettings);
+  virtual FDeveloperPlatformerCameraSettings
+  CaptureDeveloperCameraSettings() const;
+  virtual void ApplyDeveloperCharacterMovementSettings(
+      const FDeveloperPlatformerCharacterMovementSettings
+          &DeveloperCharacterMovementSettings);
+  virtual FDeveloperPlatformerCharacterMovementSettings
+  CaptureDeveloperCharacterMovementSettings() const;
+  virtual void ApplyDeveloperCombatSettings(
+      const FDeveloperPlatformerCombatSettings &DeveloperCombatSettings);
+  virtual FDeveloperPlatformerCombatSettings
+  CaptureDeveloperCombatSettings() const;
+  virtual float GetHealthWidgetVerticalPadding() const override;
+  void SetShowJumpTrajectoryPreview(bool bInShowJumpTrajectoryPreview);
+  ADeveloperJumpTrajectory *EnsureDeveloperJumpTrajectoryActor();
+  void DestroyDeveloperJumpTrajectoryActor();
+  void SetDeveloperCrouchCapsuleScaleOverride(float InCrouchCapsuleScale);
+  void ClearDeveloperCrouchCapsuleScaleOverride();
+  void SetDeveloperJumpHorizontalSpeedOverride(float InJumpHorizontalSpeed);
+  void ClearDeveloperJumpHorizontalSpeedOverride();
+  float CaptureDeveloperCrouchCapsuleScale() const;
+  float CaptureDeveloperJumpHorizontalSpeed() const;
+  float ResolveDefaultCrouchCapsuleScale() const;
+  float ResolveStandingCapsuleHalfHeight() const;
+  void ApplyResolvedCrouchCapsuleScale();
+  const UGA_PlatformerJump *FindGrantedJumpAbility() const;
+  void RefreshJumpTrajectoryPreview();
+  FDeveloperPlatformerCombatSettings
+  ResolveDeveloperCombatSettingsForApplication(
+      const FDeveloperPlatformerCombatSettings &DeveloperCombatSettings) const;
+  void LoadAndApplyDeveloperSettings();
+  void
+  SetHasActiveDeveloperCombatSettings(bool bInHasActiveDeveloperCombatSettings);
 
-	UPROPERTY(Transient)
-	TObjectPtr<APlatformerLadder> ActiveLadder;
+  UPROPERTY(Transient)
+  TObjectPtr<APlatformerLadder> ActiveLadder;
 
-	UPROPERTY(Transient)
-	TObjectPtr<APlatformerLadder> AvailableLadder;
+  UPROPERTY(Transient)
+  TObjectPtr<APlatformerLadder> AvailableLadder;
 
-	UPROPERTY(Transient)
-	TArray<TWeakObjectPtr<APlatformerLedgeGrab>> AvailableLedgeGrabs;
+  UPROPERTY(Transient)
+  TArray<TWeakObjectPtr<APlatformerLedgeGrab>> AvailableLedgeGrabs;
 
-	UPROPERTY(Transient)
-	bool bIsOnLadder = false;
+  UPROPERTY(Transient)
+  bool bIsOnLadder = false;
 
-	UPROPERTY(Transient)
-	float SavedPreLadderGravityScale = 1.0f;
+  UPROPERTY(Transient)
+  float SavedPreLadderGravityScale = 1.0f;
 
-	UPROPERTY(Transient)
-	TEnumAsByte<EMovementMode> SavedPreLadderMovementMode = MOVE_Walking;
+  UPROPERTY(Transient)
+  TEnumAsByte<EMovementMode> SavedPreLadderMovementMode = MOVE_Walking;
 
-	UPROPERTY(Transient)
-	bool bHadPreLadderGravityOverride = false;
+  UPROPERTY(Transient)
+  bool bHadPreLadderGravityOverride = false;
 
-	UPROPERTY(Transient)
-	float PreLadderGravityOverride = 1.0f;
+  UPROPERTY(Transient)
+  float PreLadderGravityOverride = 1.0f;
 
-	UPROPERTY(Transient)
-	bool bHasActiveDeveloperCombatSettings = false;
+  UPROPERTY(Transient)
+  bool bHasActiveDeveloperCombatSettings = false;
 
-	UPROPERTY(Transient)
-	FDeveloperPlatformerCombatSettings ActiveDeveloperCombatSettings;
+  UPROPERTY(Transient)
+  FDeveloperPlatformerCombatSettings ActiveDeveloperCombatSettings;
 
-	UPROPERTY(Transient)
-	bool bHasDeveloperCrouchCapsuleScaleOverride = false;
+  UPROPERTY(Transient)
+  bool bHasDeveloperCrouchCapsuleScaleOverride = false;
 
-	UPROPERTY(Transient)
-	float DeveloperCrouchCapsuleScaleOverride = 0.0f;
+  UPROPERTY(Transient)
+  float DeveloperCrouchCapsuleScaleOverride = 0.0f;
 
-	UPROPERTY(Transient)
-	bool bHasDeveloperJumpHorizontalSpeedOverride = false;
+  UPROPERTY(Transient)
+  bool bHasDeveloperJumpHorizontalSpeedOverride = false;
 
-	UPROPERTY(Transient)
-	float DeveloperJumpHorizontalSpeedOverride = 0.0f;
+  UPROPERTY(Transient)
+  float DeveloperJumpHorizontalSpeedOverride = 0.0f;
 
-	UPROPERTY(Transient)
-	bool bShowJumpTrajectoryPreview = false;
+  UPROPERTY(Transient)
+  bool bShowJumpTrajectoryPreview = false;
 
-	UPROPERTY(Transient)
-	TObjectPtr<ADeveloperJumpTrajectory> DeveloperJumpTrajectoryActor;
+  UPROPERTY(Transient)
+  TObjectPtr<ADeveloperJumpTrajectory> DeveloperJumpTrajectoryActor;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI", meta=(ClampMin=0.0, Units="cm"))
-	float PlatformerHealthWidgetVerticalPadding = 20.0f;
+  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI",
+            meta = (ClampMin = 0.0, Units = "cm"))
+  float PlatformerHealthWidgetVerticalPadding = 20.0f;
 };
