@@ -49,6 +49,12 @@ protected:
 	TObjectPtr<UInputAction> MoveAction;
 
 	UPROPERTY(EditAnywhere, Category="Input")
+	TObjectPtr<UInputAction> LookAction;
+
+	UPROPERTY(EditAnywhere, Category="Input|Ladder", meta=(ClampMin="0.0"))
+	float LadderLookInputThreshold = 0.1f;
+
+	UPROPERTY(EditAnywhere, Category="Input")
 	TObjectPtr<UInputAction> JumpAction;
 
 	UPROPERTY(EditAnywhere, Category="Input")
@@ -77,11 +83,15 @@ protected:
 
 	// Input Handlers
 	void Input_Move(const FInputActionValue& Value);
+	void Input_Look(const FInputActionValue& Value);
+	UInputAction* ResolveLookAction();
 	void Input_JumpStart(const FInputActionValue& Value);
 	void Input_JumpEnd(const FInputActionValue& Value);
 	void Input_Dash(const FInputActionValue& Value);
 	void Input_CrouchStart(const FInputActionValue& Value);
 	void Input_CrouchEnd(const FInputActionValue& Value);
+	void BeginCrouchRequest(const FInputActionValue& Value);
+	void EndCrouchRequest(const FInputActionValue& Value);
 	void Input_BaseShot(const FInputActionValue& Value);
 	void Input_ChargeShotStart(const FInputActionValue& Value);
 	void Input_ChargeShotEnd(const FInputActionValue& Value);
@@ -100,7 +110,7 @@ protected:
 		bool bHasSavedChargeShotSettings);
 	void ApplyDeveloperTraversalSettings(
 		const FPlatformerLedgeTraversalSettings& DeveloperLedgeSettings,
-		const FPlatformerSlideDashSettings& DeveloperSlideDashSettings,
+		const FPlatformerDashSettings& DeveloperDashSettings,
 		const FPlatformerWallTraversalSettings& DeveloperWallSettings,
 		bool bHasSavedTraversalSettings);
 
@@ -123,8 +133,8 @@ protected:
 	// State trackers for temporary mechanics
 	bool bIsGliding;
 	bool bIsFlying;
-	bool bLadderClimbUpHeld = false;
-	bool bLadderClimbDownHeld = false;
+	bool bCrouchActionHeld = false;
+	bool bMoveCrouchHeld = false;
 	bool bChargeShotInputHeld = false;
 	float DefaultGravityScale;
 	bool bHadPreGlideGravityOverride = false;

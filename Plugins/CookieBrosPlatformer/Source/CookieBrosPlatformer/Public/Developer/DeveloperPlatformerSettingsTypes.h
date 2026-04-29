@@ -46,6 +46,9 @@ struct COOKIEBROSPLATFORMER_API FDeveloperPlatformerCharacterMovementSettings
 	float DeveloperMovementMaxWalkSpeed = 600.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
+	float DeveloperMovementChangeDirectionSpeed = 1200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
 	float DeveloperMovementMaxFlySpeed = 600.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
@@ -139,7 +142,7 @@ struct COOKIEBROSPLATFORMER_API FDeveloperPlatformerCharacterSettings
 	FPlatformerLedgeTraversalSettings DeveloperLedgeSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
-	FPlatformerSlideDashSettings DeveloperSlideDashSettings;
+	FPlatformerDashSettings DeveloperDashSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="Developer")
 	FPlatformerWallTraversalSettings DeveloperWallSettings;

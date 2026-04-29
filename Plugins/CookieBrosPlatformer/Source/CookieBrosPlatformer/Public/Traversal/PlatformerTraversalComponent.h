@@ -43,12 +43,12 @@ public:
 
 	void SetDeveloperTraversalSettingsOverride(
 		const FPlatformerLedgeTraversalSettings& InLedgeSettings,
-		const FPlatformerSlideDashSettings& InSlideDashSettings,
+		const FPlatformerDashSettings& InDashSettings,
 		const FPlatformerWallTraversalSettings& InWallSettings);
 	void ClearDeveloperTraversalSettingsOverride();
 	bool HasDeveloperTraversalSettingsOverride() const { return bHasDeveloperTraversalSettingsOverride; }
 	FPlatformerLedgeTraversalSettings GetResolvedLedgeSettings() const;
-	FPlatformerSlideDashSettings GetResolvedSlideDashSettings() const;
+	FPlatformerDashSettings GetResolvedDashSettings() const;
 	FPlatformerWallTraversalSettings GetResolvedWallSettings() const;
 
 protected:
@@ -62,7 +62,7 @@ protected:
 	FPlatformerLedgeTraversalSettings DefaultLedgeSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Traversal|Fallback")
-	FPlatformerSlideDashSettings DefaultSlideDashSettings;
+	FPlatformerDashSettings DefaultDashSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Traversal|Fallback")
 	FPlatformerWallTraversalSettings DefaultWallSettings;
@@ -74,7 +74,7 @@ protected:
 	FPlatformerLedgeTraversalSettings DeveloperLedgeSettingsOverride;
 
 	UPROPERTY(Transient)
-	FPlatformerSlideDashSettings DeveloperSlideDashSettingsOverride;
+	FPlatformerDashSettings DeveloperDashSettingsOverride;
 
 	UPROPERTY(Transient)
 	FPlatformerWallTraversalSettings DeveloperWallSettingsOverride;

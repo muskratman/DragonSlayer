@@ -1,5 +1,6 @@
 #include "GAS/Abilities/GA_PlatformerBaseHit.h"
 
+#include "Animation/PlatformerAnimGameplayTags.h"
 #include "Character/PlatformerCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "GAS/Attributes/PlatformerCharacterAttributeSet.h"
@@ -9,7 +10,7 @@ UGA_PlatformerBaseHit::UGA_PlatformerBaseHit()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Combat_Charging);
-	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_SlideDash);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_Dash);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeHang);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeClimb);
 }
@@ -41,13 +42,9 @@ void UGA_PlatformerBaseHit::ActivateAbility(
 		return;
 	}
 
-	if (const UAnimMontage* AttackMontage = GetMeleeHitSettings().AttackMontage)
-	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->PlayAnimMontage(const_cast<UAnimMontage*>(AttackMontage));
-		}
-	}
+	PlayAbilityAnimation(ActorInfo,
+		PlatformerAnimGameplayTags::Anim_Combat_MeleeHit,
+		const_cast<UAnimMontage*>(GetMeleeHitSettings().AttackMontage.Get()));
 
 	const bool bHitTarget = ExecuteConfiguredMeleeHit(Handle, ActorInfo);
 	LastMeleeActivationTime = GetAbilityWorldTime(ActorInfo);

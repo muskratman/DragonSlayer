@@ -7,8 +7,8 @@
 UGA_PlatformerDash::UGA_PlatformerDash()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	ActivationOwnedTags.AddTag(PlatformerTraversalGameplayTags::Ability_Movement_SlideDash);
-	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_SlideDash);
+	ActivationOwnedTags.AddTag(PlatformerTraversalGameplayTags::Ability_Movement_Dash);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_Dash);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeHang);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeClimb);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Combat_Charging);
@@ -48,7 +48,7 @@ void UGA_PlatformerDash::ActivateAbility(
 	UPlatformerTraversalMovementComponent* TraversalMovementComponent =
 		Character ? Cast<UPlatformerTraversalMovementComponent>(Character->GetCharacterMovement()) : nullptr;
 
-	if (!TraversalMovementComponent || !TraversalMovementComponent->StartSlideDash())
+	if (!TraversalMovementComponent || !TraversalMovementComponent->StartDash())
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;

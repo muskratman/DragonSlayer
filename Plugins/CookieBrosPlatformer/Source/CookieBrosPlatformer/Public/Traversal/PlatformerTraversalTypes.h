@@ -11,7 +11,7 @@ enum class EPlatformerTraversalState : uint8
 	LedgeHang,
 	LedgeClimb,
 	WallSlide,
-	SlideDash
+	Dash
 };
 
 UENUM(BlueprintType)
@@ -21,7 +21,7 @@ enum class EPlatformerTraversalCustomMode : uint8
 	LedgeHang,
 	LedgeClimb,
 	WallSlide,
-	SlideDash
+	Dash
 };
 
 UENUM(BlueprintType)
@@ -58,6 +58,9 @@ struct COOKIEBROSPLATFORMER_API FPlatformerLedgeTraversalSettings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(ClampMin="0.0", Units="cm"))
 	float TopSurfaceProbeForwardOffset = 52.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(ClampMin="0.0", Units="cm"))
+	float TopPointHorizontalOffset = 52.0f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(Units="cm"))
 	float HangForwardOffset = 8.0f;
 
@@ -66,6 +69,9 @@ struct COOKIEBROSPLATFORMER_API FPlatformerLedgeTraversalSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(ClampMin="1.0", Units="cm/s"))
 	float ClimbSpeed = 240.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(ClampMin="0.0", Units="s"))
+	float InputClimbDelay = 0.12f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Ledge", meta=(ClampMin="0.0", Units="s"))
 	float ForgivenessWindow = 0.16f;
@@ -81,29 +87,29 @@ struct COOKIEBROSPLATFORMER_API FPlatformerLedgeTraversalSettings
 };
 
 USTRUCT(BlueprintType)
-struct COOKIEBROSPLATFORMER_API FPlatformerSlideDashSettings
+struct COOKIEBROSPLATFORMER_API FPlatformerDashSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category="SlideDash")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category="Dash")
 	bool bEnabled = true;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="SlideDash", meta=(ClampMin="0.0", Units="cm/s"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Dash", meta=(ClampMin="0.0", Units="cm/s"))
 	float DashSpeed = 1400.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="SlideDash", meta=(ClampMin="0.0", Units="cm"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Dash", meta=(ClampMin="0.0", Units="cm"))
 	float DashDistance = 360.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="SlideDash", meta=(ClampMin="0.01", Units="s"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Dash", meta=(ClampMin="0.01", Units="s"))
 	float DashDuration = 0.26f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="SlideDash", meta=(ClampMin="0.0", Units="s"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Dash", meta=(ClampMin="0.0", Units="s"))
 	float DashRecovery = 0.3f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="SlideDash", meta=(ClampMin="0.2", ClampMax="1.0"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Dash", meta=(ClampMin="0.2", ClampMax="1.0"))
 	float DashHitboxScale = 0.5f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category="SlideDash|Cues")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, SaveGame, Category="Dash|Cues")
 	FGameplayTag DashCueTag;
 };
 
@@ -129,6 +135,9 @@ struct COOKIEBROSPLATFORMER_API FPlatformerWallTraversalSettings
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Wall", meta=(ClampMin="0.0", ClampMax="89.0", Units="deg"))
 	float WallJumpAngleDegrees = 50.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Wall", meta=(ClampMin="0.0", Units="s"))
+	float WallJumpStateDuration = 0.18f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, Category="Wall", meta=(ClampMin="0.0", Units="s"))
 	float ClingTime = 0.9f;

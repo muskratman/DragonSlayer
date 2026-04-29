@@ -12,6 +12,7 @@ class APlatformerCharacterBase;
 class UAbilitySystemComponent;
 class UGameplayEffect;
 class UPlatformerCharacterAttributeSet;
+class UPlatformerAnimInstance;
 class UAnimMontage;
 
 USTRUCT(BlueprintType)
@@ -86,4 +87,25 @@ protected:
 		float DamageAmount,
 		TSubclassOf<UGameplayEffect> DamageEffectClass = nullptr,
 		float EffectLevel = 1.0f) const;
+
+	/** Get the platformer AnimInstance (if the character's AnimBP inherits UPlatformerAnimInstance). */
+	UPlatformerAnimInstance* GetPlatformerAnimInstance(const FGameplayAbilityActorInfo* ActorInfo) const;
+
+	/**
+	 * Play a montage via data-driven lookup.
+	 * Priority: AnimDataAsset (by AnimTag) → FallbackMontage.
+	 * @return Duration of the played montage, or 0 if nothing was played.
+	 */
+	float PlayAbilityAnimation(
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTag& AnimTag,
+		UAnimMontage* FallbackMontage = nullptr,
+		float PlayRate = 1.0f) const;
+
+	/** Stop a montage via data-driven lookup, with fallback. */
+	void StopAbilityAnimation(
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTag& AnimTag,
+		UAnimMontage* FallbackMontage = nullptr,
+		float BlendOutTime = 0.25f) const;
 };

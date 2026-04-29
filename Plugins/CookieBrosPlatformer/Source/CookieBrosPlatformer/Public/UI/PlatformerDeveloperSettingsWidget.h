@@ -112,6 +112,9 @@ protected:
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UDeveloperParameterWidget> Movement_MaxWalkSpeed;
 
+	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> Movement_ChangeDirectionSpeed;
+
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UDeveloperParameterWidget> Movement_MaxFlySpeed;
 
@@ -206,6 +209,9 @@ protected:
 	TObjectPtr<UDeveloperParameterWidget> Ledge_TopSurfaceForwardOffset;
 
 	UPROPERTY(meta=(BindWidgetOptional))
+	TObjectPtr<UDeveloperParameterWidget> Ledge_TopPointHorizontalOffset;
+
+	UPROPERTY(meta=(BindWidgetOptional))
 	TObjectPtr<UDeveloperParameterWidget> Ledge_HangForwardOffset;
 
 	UPROPERTY(meta=(BindWidgetOptional))
@@ -272,7 +278,7 @@ protected:
 		const FDeveloperPlatformerCombatSettings& DeveloperCombatSettings);
 	void LoadDeveloperTraversalSettingsIntoWidgets(
 		const FPlatformerLedgeTraversalSettings& DeveloperLedgeSettings,
-		const FPlatformerSlideDashSettings& DeveloperSlideDashSettings,
+		const FPlatformerDashSettings& DeveloperDashSettings,
 		const FPlatformerWallTraversalSettings& DeveloperWallSettings);
 	FPlatformerDeveloperSettingsSnapshot CaptureDeveloperSettingsSnapshotFromRuntime() const;
 	void PatchWorkingCopyFromWidgets();
@@ -285,8 +291,8 @@ protected:
 		const FDeveloperPlatformerCombatSettings& DeveloperCombatSettings) const;
 	FPlatformerLedgeTraversalSettings BuildDeveloperLedgeSettingsFromWidgets(
 		const FPlatformerLedgeTraversalSettings& BaseDeveloperLedgeSettings) const;
-	FPlatformerSlideDashSettings BuildDeveloperSlideDashSettingsFromWidgets(
-		const FPlatformerSlideDashSettings& BaseDeveloperSlideDashSettings) const;
+	FPlatformerDashSettings BuildDeveloperDashSettingsFromWidgets(
+		const FPlatformerDashSettings& BaseDeveloperDashSettings) const;
 	FPlatformerWallTraversalSettings BuildDeveloperWallSettingsFromWidgets(
 		const FPlatformerWallTraversalSettings& BaseDeveloperWallSettings) const;
 	void ApplyDeveloperSettingsSnapshotToTargets(const FPlatformerDeveloperSettingsSnapshot& DeveloperSettingsSnapshot) const;

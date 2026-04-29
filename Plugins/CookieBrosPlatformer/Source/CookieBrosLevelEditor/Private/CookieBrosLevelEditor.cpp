@@ -77,7 +77,7 @@ void FCookieBrosLevelEditorModule::RegisterMenus()
 	Section.AddMenuEntry(
 		"CookieBrosPlatformerSettings",
 		LOCTEXT("OpenPlatformerSettingsLabel", "Platformer Settings"),
-		LOCTEXT("OpenPlatformerSettingsTooltip", "Open quick settings for selected Platformer environment actors."),
+		LOCTEXT("OpenPlatformerSettingsTooltip", "Open quick settings for selected Platformer actors."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.GameSettings"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FCookieBrosLevelEditorModule::OpenPlatformerSettingsTab)));
 }

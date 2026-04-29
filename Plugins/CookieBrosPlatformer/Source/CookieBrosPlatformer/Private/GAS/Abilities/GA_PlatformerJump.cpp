@@ -38,9 +38,12 @@ void UGA_PlatformerJump::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
 		if (Character)
 		{
+			const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
+			const float PreservedHorizontalSpeed = MovementComponent ? MovementComponent->Velocity.X : 0.0f;
 			const float DirectionSign = ResolveHorizontalJumpDirection(Character);
 			Character->JumpMaxHoldTime = FMath::Max(0.0f, JumpMaxHoldTime);
 			Character->Jump();
+			ApplyHorizontalJumpSpeed(Character, DirectionSign, PreservedHorizontalSpeed);
 
 			if (UWorld* World = Character->GetWorld())
 			{
@@ -49,7 +52,8 @@ void UGA_PlatformerJump::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 						this,
 						&UGA_PlatformerJump::ApplyHorizontalJumpSpeedDeferred,
 						TWeakObjectPtr<ACharacter>(Character),
-						DirectionSign));
+						DirectionSign,
+						PreservedHorizontalSpeed));
 			}
 		}
 	}
@@ -86,23 +90,23 @@ void UGA_PlatformerJump::CancelAbility(const FGameplayAbilitySpecHandle Handle, 
 	}
 }
 
-void UGA_PlatformerJump::ApplyHorizontalJumpSpeedDeferred(TWeakObjectPtr<ACharacter> Character, float DirectionSign)
+void UGA_PlatformerJump::ApplyHorizontalJumpSpeedDeferred(
+	TWeakObjectPtr<ACharacter> Character,
+	float DirectionSign,
+	float PreservedHorizontalSpeed)
 {
 	if (ACharacter* ResolvedCharacter = Character.Get())
 	{
-		ApplyHorizontalJumpSpeed(ResolvedCharacter, DirectionSign);
+		ApplyHorizontalJumpSpeed(ResolvedCharacter, DirectionSign, PreservedHorizontalSpeed);
 	}
 }
 
-void UGA_PlatformerJump::ApplyHorizontalJumpSpeed(ACharacter* Character, float DirectionSign) const
+void UGA_PlatformerJump::ApplyHorizontalJumpSpeed(
+	ACharacter* Character,
+	float DirectionSign,
+	float PreservedHorizontalSpeed) const
 {
 	if (!Character)
-	{
-		return;
-	}
-
-	const EPlatformerJumpHorizontalSpeedMode ResolvedJumpHorizontalSpeedMode = ResolveHorizontalJumpSpeedMode(Character);
-	if (ResolvedJumpHorizontalSpeedMode == EPlatformerJumpHorizontalSpeedMode::None)
 	{
 		return;
 	}
@@ -113,40 +117,64 @@ void UGA_PlatformerJump::ApplyHorizontalJumpSpeed(ACharacter* Character, float D
 		return;
 	}
 
-	if (FMath::IsNearlyZero(DirectionSign))
+	const EPlatformerJumpHorizontalSpeedMode ResolvedJumpHorizontalSpeedMode = ResolveHorizontalJumpSpeedMode(Character);
+
+	float ResolvedDirectionSign = DirectionSign;
+	if (ResolvedJumpHorizontalSpeedMode == EPlatformerJumpHorizontalSpeedMode::None
+		&& !FMath::IsNearlyZero(PreservedHorizontalSpeed))
 	{
-		return;
+		ResolvedDirectionSign = FMath::Sign(PreservedHorizontalSpeed);
+	}
+	else if (FMath::IsNearlyZero(ResolvedDirectionSign) && !FMath::IsNearlyZero(PreservedHorizontalSpeed))
+	{
+		ResolvedDirectionSign = FMath::Sign(PreservedHorizontalSpeed);
 	}
 
-	const float ResolvedJumpHorizontalSpeed = ResolveHorizontalJumpSpeed(Character);
-	if (ResolvedJumpHorizontalSpeed <= 0.0f)
+	if (FMath::IsNearlyZero(ResolvedDirectionSign))
 	{
 		return;
 	}
 
 	FVector Velocity = MovementComponent->Velocity;
-	const float CurrentAlignedSpeed = Velocity.X * DirectionSign;
+	const float CurrentAlignedSpeed = Velocity.X * ResolvedDirectionSign;
+	const float PreservedAlignedSpeed = PreservedHorizontalSpeed * ResolvedDirectionSign;
 
 	switch (ResolvedJumpHorizontalSpeedMode)
 	{
 	case EPlatformerJumpHorizontalSpeedMode::ClampMin:
-		Velocity.X = DirectionSign * FMath::Max(CurrentAlignedSpeed, ResolvedJumpHorizontalSpeed);
+		Velocity.X = ResolvedDirectionSign * FMath::Max(
+			FMath::Max(CurrentAlignedSpeed, FMath::Max(PreservedAlignedSpeed, 0.0f)),
+			ResolveHorizontalJumpSpeed(Character));
 		break;
 
 	case EPlatformerJumpHorizontalSpeedMode::Override:
-		Velocity.X = DirectionSign * ResolvedJumpHorizontalSpeed;
+		if (const float ResolvedJumpHorizontalSpeed = ResolveHorizontalJumpSpeed(Character);
+			ResolvedJumpHorizontalSpeed > 0.0f)
+		{
+			Velocity.X = ResolvedDirectionSign * FMath::Max(
+				ResolvedJumpHorizontalSpeed,
+				FMath::Max(PreservedAlignedSpeed, CurrentAlignedSpeed));
+		}
+		else if (PreservedAlignedSpeed > CurrentAlignedSpeed)
+		{
+			Velocity.X = PreservedHorizontalSpeed;
+		}
 		break;
 
 	case EPlatformerJumpHorizontalSpeedMode::None:
 	default:
-		return;
+		if (PreservedAlignedSpeed > CurrentAlignedSpeed)
+		{
+			Velocity.X = PreservedHorizontalSpeed;
+		}
+		break;
 	}
 
 	MovementComponent->Velocity = Velocity;
 
 	if (USideViewMovementComponent* SideViewMovementComponent = Cast<USideViewMovementComponent>(MovementComponent))
 	{
-		SideViewMovementComponent->NotifyJumpHorizontalSpeedApplied(FMath::Abs(Velocity.X), DirectionSign);
+		SideViewMovementComponent->NotifyJumpHorizontalSpeedApplied(FMath::Abs(Velocity.X), ResolvedDirectionSign);
 	}
 }
 

@@ -21,3 +21,13 @@ APlatformerEnemyFlying::APlatformerEnemyFlying(const FObjectInitializer& ObjectI
 		MovementComponent->DefaultLandMovementMode = MOVE_Flying;
 	}
 }
+
+void APlatformerEnemyFlying::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->SetMovementMode(MOVE_Flying);
+	}
+}

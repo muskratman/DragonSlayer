@@ -43,11 +43,11 @@ public:
 	bool IsTraversalEnabled() const { return bTraversalEnabled; }
 
 	void SetDefaultLedgeSettings(const FPlatformerLedgeTraversalSettings& InSettings);
-	void SetDefaultSlideDashSettings(const FPlatformerSlideDashSettings& InSettings);
+	void SetDefaultDashSettings(const FPlatformerDashSettings& InSettings);
 	void SetDefaultWallSettings(const FPlatformerWallTraversalSettings& InSettings);
 	void SetDeveloperTraversalSettingsOverride(
 		const FPlatformerLedgeTraversalSettings& InLedgeSettings,
-		const FPlatformerSlideDashSettings& InSlideDashSettings,
+		const FPlatformerDashSettings& InDashSettings,
 		const FPlatformerWallTraversalSettings& InWallSettings);
 	void ClearDeveloperTraversalSettingsOverride();
 
@@ -70,7 +70,7 @@ public:
 	void HandleTraversalCrouchReleased();
 
 	UFUNCTION(BlueprintCallable, Category="Traversal")
-	bool StartSlideDash();
+	bool StartDash();
 
 	UFUNCTION(BlueprintCallable, Category="Traversal")
 	void CancelTraversal();
@@ -85,13 +85,46 @@ public:
 	bool IsHangingOnLedge() const;
 
 	UFUNCTION(BlueprintPure, Category="Traversal")
+	bool IsClimbingLedge() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal")
 	bool IsWallSliding() const;
 
 	UFUNCTION(BlueprintPure, Category="Traversal")
-	bool IsSlideDashing() const;
+	bool IsWallJumping() const;
 
 	UFUNCTION(BlueprintPure, Category="Traversal")
-	bool IsInSlideDashRecovery() const;
+	bool IsDashing() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal")
+	bool IsInDashRecovery() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Dash")
+	float GetDashElapsedTime() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Dash")
+	float GetDashDuration() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Dash")
+	float GetDashNormalizedTime() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Dash")
+	float GetDashTravelDistance() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Dash")
+	float GetDashDistanceAlpha() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Dash")
+	float GetDashProgressAlpha() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Ledge")
+	float GetLedgeClimbElapsedTime() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Ledge")
+	float GetLedgeClimbDuration() const;
+
+	UFUNCTION(BlueprintPure, Category="Traversal|Ledge")
+	float GetLedgeClimbNormalizedTime() const;
 
 	UFUNCTION(BlueprintPure, Category="Traversal")
 	bool IsAttackBlockedByTraversal() const;
@@ -107,15 +140,6 @@ protected:
 	TObjectPtr<UPlatformerTraversalConfigDataAsset> TraversalConfig;
 
 private:
-	struct FCachedCapsuleState
-	{
-		float UnscaledRadius = 0.0f;
-		float UnscaledHalfHeight = 0.0f;
-		float ShapeScale = 1.0f;
-		bool bValid = false;
-	};
-
-	void CacheCapsuleState();
 	void UpdateAutomaticTraversal();
 	void UpdateTraversalState(EPlatformerTraversalState NewState);
 	void AddPersistentCue(const FGameplayTag& CueTag);
@@ -128,18 +152,17 @@ private:
 	float GetWorldTimeSafe() const;
 	float GetTraversalDirectionSign() const;
 	const FPlatformerLedgeTraversalSettings& GetLedgeSettings() const;
-	const FPlatformerSlideDashSettings& GetSlideDashSettings() const;
+	const FPlatformerDashSettings& GetDashSettings() const;
 	const FPlatformerWallTraversalSettings& GetWallSettings() const;
 	bool ShouldUseFallingTraversal() const;
-	bool ShouldCancelSlideDashFromInput() const;
-	bool RestoreCapsuleSizeIfPossible();
-	void ApplySlideDashCapsule();
+	bool ShouldCancelDashFromInput() const;
 	bool CanUseFullCapsuleAt(const FVector& TestLocation) const;
 	bool HasWalkableFloorBelow(const FVector& TestLocation) const;
 
 	bool TryFindLedgeGrab(FVector& OutHangLocation, FVector& OutClimbTargetLocation, FVector& OutWallNormal) const;
 	bool TryFindTriggeredLedgeGrab(FVector& OutHangLocation, FVector& OutClimbTargetLocation, FVector& OutWallNormal) const;
 	bool TryFindLegacyWorldLedgeGrab(FVector& OutHangLocation, FVector& OutClimbTargetLocation, FVector& OutWallNormal) const;
+	bool CanStartLedgeClimbFromInput() const;
 	bool TryFindWallSlide(FVector& OutWallNormal, FVector& OutAnchorLocation, AActor*& OutWallActor) const;
 
 	void EnterLedgeHang(const FVector& HangLocation, const FVector& ClimbTargetLocation, const FVector& WallNormal);
@@ -151,28 +174,27 @@ private:
 	void EnterWallSlide(const FVector& WallNormal, const FVector& AnchorLocation, AActor* WallActor);
 	void ExitWallSlide(bool bSetToFallingMode);
 	void PhysWallSlide(float DeltaTime, int32 Iterations);
-	void PerformWallKick();
+	void PerformWallJump();
+	void StartWallJumpState();
+	void ClearWallJumpState();
 
-	void FinishSlideDash(bool bInterrupted, bool bForceFallingMode);
-	void PhysSlideDash(float DeltaTime, int32 Iterations);
+	void FinishDash(bool bInterrupted, bool bForceFallingMode);
+	void PhysDash(float DeltaTime, int32 Iterations);
 
 	FVector2D TraversalInputVector = FVector2D::ZeroVector;
 	EPlatformerTraversalState TraversalState = EPlatformerTraversalState::None;
 	FPlatformerLedgeTraversalSettings DefaultLedgeSettings;
-	FPlatformerSlideDashSettings DefaultSlideDashSettings;
+	FPlatformerDashSettings DefaultDashSettings;
 	FPlatformerWallTraversalSettings DefaultWallSettings;
 	bool bHasDeveloperTraversalSettingsOverride = false;
 	FPlatformerLedgeTraversalSettings DeveloperLedgeSettingsOverride;
-	FPlatformerSlideDashSettings DeveloperSlideDashSettingsOverride;
+	FPlatformerDashSettings DeveloperDashSettingsOverride;
 	FPlatformerWallTraversalSettings DeveloperWallSettingsOverride;
-
-	FCachedCapsuleState CachedCapsuleState;
-	bool bDashCapsuleApplied = false;
-	bool bPendingCapsuleRestore = false;
 
 	FVector LedgeHangLocation = FVector::ZeroVector;
 	FVector LedgeClimbTargetLocation = FVector::ZeroVector;
 	FVector LedgeWallNormal = FVector::ZeroVector;
+	float LedgeHangStartTime = 0.0f;
 	float LedgeClimbStartTime = 0.0f;
 	float LedgeClimbDuration = 0.0f;
 	float LedgeReleaseLockoutEndTime = -1.0f;
@@ -180,15 +202,17 @@ private:
 	FVector WallSlideNormal = FVector::ZeroVector;
 	FVector WallSlideAnchorLocation = FVector::ZeroVector;
 	TWeakObjectPtr<AActor> WallSlideActor;
-	TWeakObjectPtr<AActor> LastWallKickActor;
-	FVector LastWallKickNormal = FVector::ZeroVector;
+	TWeakObjectPtr<AActor> LastWallJumpActor;
+	FVector LastWallJumpNormal = FVector::ZeroVector;
 	float WallSlideStartTime = 0.0f;
+	bool bWallJumpStateActive = false;
+	float WallJumpStateEndTime = -1.0f;
 	float SameWallReattachEndTime = -1.0f;
 
-	FVector SlideDashStartLocation = FVector::ZeroVector;
-	float SlideDashStartTime = 0.0f;
-	float SlideDashDirectionSign = 1.0f;
-	float SlideDashRecoveryEndTime = -1.0f;
+	FVector DashStartLocation = FVector::ZeroVector;
+	float DashStartTime = 0.0f;
+	float DashDirectionSign = 1.0f;
+	float DashRecoveryEndTime = -1.0f;
 	float FallingStartTime = -1.0f;
 
 	FGameplayTag ActivePersistentCueTag;

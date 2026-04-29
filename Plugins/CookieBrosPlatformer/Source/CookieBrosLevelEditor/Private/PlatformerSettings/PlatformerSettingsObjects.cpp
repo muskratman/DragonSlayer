@@ -1,5 +1,7 @@
 #include "PlatformerSettings/PlatformerSettingsObjects.h"
 
+#include "AI/PlatformerEnemyBase.h"
+#include "AI/PlatformerEnemyRanged.h"
 #include "Platformer/Environment/PlatformerConveyor.h"
 #include "Platformer/Environment/PlatformerDangerBlock.h"
 #include "Platformer/Environment/PlatformerDestructibleBlock.h"
@@ -230,6 +232,86 @@ void UPlatformerGravityVolumeSettingsObject::PullFromActor(AActor* Actor)
 void UPlatformerGravityVolumeSettingsObject::PushToActor()
 {
 	PlatformerSettingsPrivate::SetTypedPropertyValue<FFloatProperty>(GetEditedActor(), TEXT("GravityScaleOverride"), GravityMultiplier);
+}
+
+APlatformerEnemyBase* UPlatformerEnemySettingsObject::GetEditedEnemy() const
+{
+	return Cast<APlatformerEnemyBase>(GetEditedActor());
+}
+
+void UPlatformerEnemySettingsObject::PullFromActor(AActor* Actor)
+{
+	SetEditedActor(Actor);
+
+	const APlatformerEnemyBase* Enemy = Cast<APlatformerEnemyBase>(Actor);
+	if (!Enemy)
+	{
+		return;
+	}
+
+	Health = Enemy->GetEnemyHealth();
+	MovementSpeed = Enemy->GetEnemyMovementSpeed();
+	Damage = Enemy->GetEnemyDamage();
+	HitDelay = Enemy->GetEnemyHitDelay();
+	PatrolDelayTime = Enemy->GetEnemyPatrolDelayTime();
+	bEnablePlayerChase = Enemy->GetEnablePlayerChase();
+	ChaseAgroRadius = Enemy->GetChaseAgroRadius();
+	PatrolPoints = Enemy->GetPatrolPoints();
+}
+
+void UPlatformerEnemySettingsObject::PushToActor()
+{
+	APlatformerEnemyBase* Enemy = GetEditedEnemy();
+	if (!Enemy)
+	{
+		return;
+	}
+
+	Enemy->Modify();
+	Enemy->SetEnemyHealth(Health);
+	Enemy->SetEnemyMovementSpeed(MovementSpeed);
+	Enemy->SetEnemyDamage(Damage);
+	Enemy->SetEnemyHitDelay(HitDelay);
+	Enemy->SetEnemyPatrolDelayTime(PatrolDelayTime);
+	Enemy->SetEnablePlayerChase(bEnablePlayerChase);
+	Enemy->SetChaseAgroRadius(ChaseAgroRadius);
+	Enemy->SetPatrolPoints(PatrolPoints);
+	Enemy->PostEditChange();
+}
+
+APlatformerEnemyRanged* UPlatformerRangedEnemySettingsObject::GetEditedRangedEnemy() const
+{
+	return Cast<APlatformerEnemyRanged>(GetEditedActor());
+}
+
+void UPlatformerRangedEnemySettingsObject::PullFromActor(AActor* Actor)
+{
+	Super::PullFromActor(Actor);
+
+	const APlatformerEnemyRanged* Enemy = Cast<APlatformerEnemyRanged>(Actor);
+	if (!Enemy)
+	{
+		return;
+	}
+
+	ProjectileSpeed = Enemy->GetEnemyProjectileSpeed();
+	ProjectileDistance = Enemy->GetEnemyProjectileDistance();
+}
+
+void UPlatformerRangedEnemySettingsObject::PushToActor()
+{
+	Super::PushToActor();
+
+	APlatformerEnemyRanged* Enemy = GetEditedRangedEnemy();
+	if (!Enemy)
+	{
+		return;
+	}
+
+	Enemy->Modify();
+	Enemy->SetEnemyProjectileSpeed(ProjectileSpeed);
+	Enemy->SetEnemyProjectileDistance(ProjectileDistance);
+	Enemy->PostEditChange();
 }
 
 void UPlatformerHazardProjectileSettingsObject::PullFromActor(AActor* Actor)

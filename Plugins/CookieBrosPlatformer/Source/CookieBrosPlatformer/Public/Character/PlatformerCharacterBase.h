@@ -8,6 +8,7 @@
 
 
 class UPlatformerAbilitySet;
+class UPlatformerAnimDataAsset;
 class UGA_PlatformerJump;
 class USpringArmComponent;
 class UCameraComponent;
@@ -30,7 +31,7 @@ class COOKIEBROSPLATFORMER_API APlatformerCharacterBase
             meta = (AllowPrivateAccess = "true"))
   TObjectPtr<USpringArmComponent> CameraBoom;
 
-  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components",
+  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera",
             meta = (AllowPrivateAccess = "true"))
   TObjectPtr<UCameraComponent> FollowCamera;
 
@@ -50,6 +51,20 @@ public:
   virtual void NotifyLedgeGrabUnavailable(APlatformerLedgeGrab *LedgeGrab);
   virtual bool EnterLadder(APlatformerLadder *Ladder);
   virtual void ExitLadder(APlatformerLadder *Ladder = nullptr);
+  virtual bool TryEnterAvailableLadder(float DesiredClimbInput = 1.0f);
+  virtual bool HandleLadderClimbInput(float InClimbInput,
+                                      float InputDeadZone = 0.0f);
+  virtual bool HandleLadderHorizontalExitInput(float InHorizontalInput,
+                                               float InputDeadZone = 0.0f);
+  virtual void SetLadderClimbInput(float InClimbInput);
+  virtual bool PerformLadderJump();
+  virtual bool PerformLadderCrouch();
+  UFUNCTION(BlueprintPure, Category = "Ladder|Animation")
+  bool ShouldPlayLadderStartAnimation() const;
+  UFUNCTION(BlueprintPure, Category = "Ladder|Animation")
+  bool ShouldPlayLadderLoopAnimation() const;
+  UFUNCTION(BlueprintPure, Category = "Ladder|Animation")
+  bool ShouldPlayLadderEndAnimation() const;
   virtual void
   GetAvailableLedgeGrabs(TArray<APlatformerLedgeGrab *> &OutLedgeGrabs) const;
   virtual void ApplyDeveloperCharacterSettings(
@@ -63,9 +78,16 @@ public:
   virtual FVector GetPlatformerCameraFocusLocation() const;
   UFUNCTION(BlueprintCallable, Category = "Developer|Jump Preview")
   ADeveloperJumpTrajectory *SpawnJumpTrajectorySnapshotActor();
+  UFUNCTION(BlueprintCallable, Category = "Developer|Debug")
+  void SetPrintDeveloperCharacterStateEveryTick(bool bInPrintEveryTick);
+  UFUNCTION(BlueprintCallable, Category = "Developer|Debug")
+  void PrintDeveloperCharacterState() const;
+  UFUNCTION(BlueprintPure, Category = "Developer|Debug")
+  FString GetDeveloperCharacterStateDebugString() const;
 
   FORCEINLINE UCameraComponent *GetFollowCamera() const { return FollowCamera; }
   FORCEINLINE USpringArmComponent *GetCameraBoom() const { return CameraBoom; }
+  FORCEINLINE UPlatformerAnimDataAsset *GetAnimDataAsset() const { return AnimDataAsset; }
   FORCEINLINE bool IsOnLadder() const { return bIsOnLadder; }
   FORCEINLINE APlatformerLadder *GetActiveLadder() const {
     return ActiveLadder;
@@ -73,6 +95,8 @@ public:
   FORCEINLINE APlatformerLadder *GetAvailableLadder() const {
     return AvailableLadder;
   }
+  UFUNCTION(BlueprintPure, Category = "Ladder|Movement")
+  float GetLadderClimbInput() const;
   FORCEINLINE bool HasDeveloperCrouchCapsuleScaleOverride() const {
     return bHasDeveloperCrouchCapsuleScaleOverride;
   }
@@ -124,6 +148,17 @@ protected:
   float ResolveDefaultCrouchCapsuleScale() const;
   float ResolveStandingCapsuleHalfHeight() const;
   void ApplyResolvedCrouchCapsuleScale();
+  void UpdateActiveLadderMovement(float DeltaTime);
+  void UpdateLadderAnimationState(float DeltaTime);
+  void SnapCharacterToActiveLadder();
+  void ExitActiveLadderToFalling(APlatformerLadder *Ladder = nullptr);
+  bool IsCharacterAtOrBelowLadderBottom(const APlatformerLadder *Ladder) const;
+  float GetCharacterFeetWorldZ() const;
+  float GetWorldTimeSafe() const;
+  void BeginLadderStartAnimationState();
+  void BeginLadderLoopAnimationState();
+  void BeginLadderEndAnimationState();
+  void ClearLadderAnimationState();
   const UGA_PlatformerJump *FindGrantedJumpAbility() const;
   void RefreshJumpTrajectoryPreview();
   FDeveloperPlatformerCombatSettings
@@ -158,6 +193,42 @@ protected:
   float PreLadderGravityOverride = 1.0f;
 
   UPROPERTY(Transient)
+  float LadderClimbInput = 0.0f;
+
+  UPROPERTY(Transient)
+  float LadderJumpEndTime = -1.0f;
+
+  UPROPERTY(Transient)
+  float LadderCrouchEndTime = -1.0f;
+
+  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ladder",
+            meta = (ClampMin = 0.0, Units = "cm"))
+  float LadderBottomExitTolerance = 4.0f;
+
+  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ladder|Animation",
+            meta = (ClampMin = 0.0, Units = "s"))
+  float LadderStartStateDuration = 0.16f;
+
+  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ladder|Animation",
+            meta = (ClampMin = 0.0, Units = "s"))
+  float LadderEndStateDuration = 0.12f;
+
+  UPROPERTY(BlueprintReadOnly, Transient, Category = "Ladder|Animation")
+  bool bShouldLadderStart = false;
+
+  UPROPERTY(BlueprintReadOnly, Transient, Category = "Ladder|Animation")
+  bool bShouldLadderLoop = false;
+
+  UPROPERTY(BlueprintReadOnly, Transient, Category = "Ladder|Animation")
+  bool bShouldLadderEnd = false;
+
+  UPROPERTY(Transient)
+  float LadderStartStateTimeRemaining = 0.0f;
+
+  UPROPERTY(Transient)
+  float LadderEndStateTimeRemaining = 0.0f;
+
+  UPROPERTY(Transient)
   bool bHasActiveDeveloperCombatSettings = false;
 
   UPROPERTY(Transient)
@@ -181,7 +252,18 @@ protected:
   UPROPERTY(Transient)
   TObjectPtr<ADeveloperJumpTrajectory> DeveloperJumpTrajectoryActor;
 
+  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Developer|Debug")
+  bool bPrintDeveloperCharacterStateEveryTick = true;
+
   UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI",
             meta = (ClampMin = 0.0, Units = "cm"))
   float PlatformerHealthWidgetVerticalPadding = 20.0f;
+
+  /** Data-driven animation mapping for ability montages. */
+  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
+  TObjectPtr<UPlatformerAnimDataAsset> AnimDataAsset;
+
+  /** Subclass of AnimBP to link as anim layers at BeginPlay (optional). */
+  UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
+  TSubclassOf<UAnimInstance> LinkedAnimLayerClass;
 };

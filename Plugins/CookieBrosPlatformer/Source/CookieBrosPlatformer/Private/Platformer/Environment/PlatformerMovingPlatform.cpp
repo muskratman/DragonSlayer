@@ -3,9 +3,11 @@
 #include "Platformer/Environment/PlatformerMovingPlatform.h"
 
 #include "Components/ArrowComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Platformer/Environment/PlatformerDropThroughPlatformComponent.h"
 #include "Platformer/Environment/PlatformerEnvironmentHelpers.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -33,6 +35,26 @@ APlatformerMovingPlatform::APlatformerMovingPlatform()
 	{
 		PlatformMesh->SetStaticMesh(CubeMesh.Object);
 	}
+
+	DropThroughTopCheckLayoutRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DropThroughTopCheckLayoutRoot"));
+	DropThroughTopCheckLayoutRoot->SetupAttachment(Root);
+
+	DropThroughTopCheckBox = CreateDefaultSubobject<UBoxComponent>(TEXT("DropThroughTopCheckBox"));
+	DropThroughTopCheckBox->SetupAttachment(DropThroughTopCheckLayoutRoot);
+
+	DropThroughBottomCheckLayoutRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DropThroughBottomCheckLayoutRoot"));
+	DropThroughBottomCheckLayoutRoot->SetupAttachment(Root);
+
+	DropThroughBottomCheckBox = CreateDefaultSubobject<UBoxComponent>(TEXT("DropThroughBottomCheckBox"));
+	DropThroughBottomCheckBox->SetupAttachment(DropThroughBottomCheckLayoutRoot);
+
+	DropThroughPlatformComponent = CreateDefaultSubobject<UPlatformerDropThroughPlatformComponent>(TEXT("DropThroughPlatform"));
+	DropThroughPlatformComponent->InitializeDropThroughPlatform(
+		PlatformMesh,
+		DropThroughTopCheckLayoutRoot,
+		DropThroughTopCheckBox,
+		DropThroughBottomCheckLayoutRoot,
+		DropThroughBottomCheckBox);
 
 	PointALayoutRoot = CreateDefaultSubobject<USceneComponent>(TEXT("PointALayoutRoot"));
 	PointALayoutRoot->SetupAttachment(Root);
@@ -80,6 +102,7 @@ APlatformerMovingPlatform::APlatformerMovingPlatform()
 void APlatformerMovingPlatform::SetPlatformSize(const FVector& InPlatformSize)
 {
 	PlatformSize = InPlatformSize.ComponentMax(FVector(1.0f, 1.0f, 1.0f));
+	RefreshMovingPlatformLayout();
 }
 
 void APlatformerMovingPlatform::BeginPlay()
@@ -108,12 +131,19 @@ void APlatformerMovingPlatform::OnConstruction(const FTransform& Transform)
 
 void APlatformerMovingPlatform::RefreshMovingPlatformLayout()
 {
+	const FVector ResolvedPlatformSize = PlatformSize.ComponentMax(FVector(1.0f, 1.0f, 1.0f));
+
 	PlatformerEnvironment::ApplyRelativeTransform(
 		PlatformMeshLayoutRoot,
-		FVector(0.0f, 0.0f, PlatformSize.Z * 0.5f),
+		FVector(0.0f, 0.0f, ResolvedPlatformSize.Z * 0.5f),
 		FRotator::ZeroRotator,
-		PlatformSize / 100.0f,
+		ResolvedPlatformSize / 100.0f,
 		PlatformMeshTransformOffset);
+
+	if (DropThroughPlatformComponent)
+	{
+		DropThroughPlatformComponent->RefreshDropThroughPlatformLayout(ResolvedPlatformSize);
+	}
 
 	PlatformerEnvironment::ApplyRelativeTransform(
 		PointALayoutRoot,

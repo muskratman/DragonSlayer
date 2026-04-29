@@ -96,18 +96,13 @@ bool APlatformerLedgeGrab::TryBuildTraversalTargets(
 
 	OutWallNormal = FVector(-FMath::Sign(DirectionSign), 0.0f, 0.0f);
 
-	const float DesiredClimbX = WallFaceX + (DirectionSign * (CapsuleRadius + LedgeSettings.TopSurfaceProbeForwardOffset));
-	const float MinClimbX = GetActorLocation().X - BlockHalfWidth + CapsuleRadius;
-	const float MaxClimbX = GetActorLocation().X + BlockHalfWidth - CapsuleRadius;
-	const float ClampedClimbX = FMath::Clamp(DesiredClimbX, FMath::Min(MinClimbX, MaxClimbX), FMath::Max(MinClimbX, MaxClimbX));
-
 	OutHangLocation = FVector(
 		WallFaceX + OutWallNormal.X * (CapsuleRadius - LedgeSettings.HangForwardOffset),
 		TargetDepthY,
 		TopSurfaceZ - CapsuleHalfHeight + LedgeSettings.HangVerticalOffset);
 
 	OutClimbTargetLocation = FVector(
-		ClampedClimbX,
+		OutHangLocation.X + DirectionSign * LedgeSettings.TopPointHorizontalOffset,
 		TargetDepthY,
 		TopSurfaceZ + CapsuleHalfHeight + PlatformerLedgeGrabPrivate::FloorStandTolerance);
 

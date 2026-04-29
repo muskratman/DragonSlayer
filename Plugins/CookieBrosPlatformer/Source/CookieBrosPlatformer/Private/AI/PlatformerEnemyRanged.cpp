@@ -8,6 +8,13 @@
 APlatformerEnemyRanged::APlatformerEnemyRanged(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ProjectileClass = AEnemyProjectile::StaticClass();
+	ProjectileMaxDistance = FMath::Max(ProjectileMaxDistance, RangedAttackRange);
+}
+
+void APlatformerEnemyRanged::SetEnemyProjectileSpeed(float InProjectileSpeed)
+{
+	ProjectileSpeed = FMath::Max(InProjectileSpeed, 0.0f);
 }
 
 float APlatformerEnemyRanged::GetAttackRange() const
@@ -108,10 +115,23 @@ void APlatformerEnemyRanged::ApplyArchetypeCombatData(const UPlatformerEnemyArch
 		ProjectileClass = Archetype->ProjectileClass;
 	}
 
-	ProjectileSpeed = FMath::Max(0.0f, Archetype->ProjectileSpeed);
+	const APlatformerEnemyRanged* ClassDefaults = GetClass()->GetDefaultObject<APlatformerEnemyRanged>();
+	if (!ClassDefaults || FMath::IsNearlyEqual(ProjectileSpeed, ClassDefaults->ProjectileSpeed))
+	{
+		ProjectileSpeed = FMath::Max(0.0f, Archetype->ProjectileSpeed);
+	}
+
 	ProjectileLifetime = FMath::Max(0.0f, Archetype->ProjectileLifetime);
+	if (Archetype->ProjectileMaxDistance > 0.0f
+		&& (!ClassDefaults || FMath::IsNearlyEqual(GetEnemyProjectileDistance(), ClassDefaults->GetEnemyProjectileDistance())))
+	{
+		SetEnemyProjectileDistance(Archetype->ProjectileMaxDistance);
+	}
+
 	if (Archetype->CombatAttackRange > 0.0f)
 	{
 		RangedAttackRange = Archetype->CombatAttackRange;
 	}
+
+	SetEnemyProjectileDistance(FMath::Max(GetEnemyProjectileDistance(), GetAttackRange()));
 }

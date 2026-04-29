@@ -29,6 +29,9 @@ public:
 
 	FORCEINLINE const FVector& GetPlatformSize() const { return PlatformSize; }
 
+	UFUNCTION(BlueprintCallable, Category = "Soft Platform|Collision")
+	bool RequestCharacterDropThrough(ACharacter* Character);
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -72,12 +75,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Soft Platform|Collision", meta=(ClampMin="1.0", Units="cm"))
 	float UnderPlatformTriggerHeight = 24.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Soft Platform|Collision", meta=(ClampMin="0.01", Units="s"))
-	float JumpThroughIgnoreDuration = 0.2f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Soft Platform|Collision", meta=(ClampMin="0.01", Units="s"))
-	float DropThroughIgnoreDuration = 0.3f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Soft Platform|Collision", meta=(ClampMin="0.0", Units="cm/s"))
 	float DropThroughDownwardSpeed = 200.0f;
 
@@ -86,7 +83,6 @@ protected:
 
 	TSet<TWeakObjectPtr<ACharacter>> CharactersAbovePlatform;
 	TSet<TWeakObjectPtr<ACharacter>> CharactersBelowPlatform;
-	TMap<TWeakObjectPtr<ACharacter>, float> IgnoredCharactersUntilTime;
 
 	UFUNCTION()
 	void OnTopCheckBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -100,10 +96,7 @@ protected:
 	UFUNCTION()
 	void OnBottomCheckEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	bool IsCharacterStandingOnPlatform(const ACharacter* Character) const;
-	bool IsCharacterRequestingDropThrough(const ACharacter* Character) const;
 	void ClearInvalidCharacterSet(TSet<TWeakObjectPtr<ACharacter>>& CharacterSet);
-	void StartIgnoringCharacter(ACharacter* Character, float IgnoreDuration, bool bForceDownwardDrop);
-	void StopIgnoringCharacter(ACharacter* Character);
-	void UpdateIgnoredCharacters();
+	void StartIgnoringCharacter(ACharacter* Character, bool bForceDownwardDrop);
+	void SetCharacterIgnoreComponentWhenMoving(ACharacter* Character, bool bShouldIgnore);
 };

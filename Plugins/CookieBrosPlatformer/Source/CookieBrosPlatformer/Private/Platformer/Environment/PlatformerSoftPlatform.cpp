@@ -107,56 +107,12 @@ void APlatformerSoftPlatform::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UpdateIgnoredCharacters();
 	ClearInvalidCharacterSet(CharactersAbovePlatform);
 	ClearInvalidCharacterSet(CharactersBelowPlatform);
-
-	for (const TWeakObjectPtr<ACharacter>& CharacterPtr : CharactersBelowPlatform)
-	{
-		ACharacter* Character = CharacterPtr.Get();
-		if (Character == nullptr || IgnoredCharactersUntilTime.Contains(Character))
-		{
-			continue;
-		}
-
-		if (const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement())
-		{
-			if (MovementComponent->Velocity.Z > 0.0f)
-			{
-				StartIgnoringCharacter(Character, JumpThroughIgnoreDuration, false);
-			}
-		}
-	}
-
-	for (const TWeakObjectPtr<ACharacter>& CharacterPtr : CharactersAbovePlatform)
-	{
-		ACharacter* Character = CharacterPtr.Get();
-		if ((Character == nullptr) || IgnoredCharactersUntilTime.Contains(Character) || !IsCharacterStandingOnPlatform(Character))
-		{
-			continue;
-		}
-
-		if (IsCharacterRequestingDropThrough(Character))
-		{
-			StartIgnoringCharacter(Character, DropThroughIgnoreDuration, true);
-		}
-	}
 }
 
 void APlatformerSoftPlatform::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	TArray<TWeakObjectPtr<ACharacter>> IgnoredCharacters;
-	IgnoredCharactersUntilTime.GetKeys(IgnoredCharacters);
-
-	for (const TWeakObjectPtr<ACharacter>& CharacterPtr : IgnoredCharacters)
-	{
-		if (CharacterPtr.IsValid())
-		{
-			StopIgnoringCharacter(CharacterPtr.Get());
-		}
-	}
-
-	IgnoredCharactersUntilTime.Empty();
 	CharactersAbovePlatform.Empty();
 	CharactersBelowPlatform.Empty();
 	Super::EndPlay(EndPlayReason);
@@ -175,6 +131,10 @@ void APlatformerSoftPlatform::OnTopCheckEndOverlap(UPrimitiveComponent* Overlapp
 	if (ACharacter* Character = Cast<ACharacter>(OtherActor))
 	{
 		CharactersAbovePlatform.Remove(Character);
+		if (!CharactersBelowPlatform.Contains(Character))
+		{
+			SetCharacterIgnoreComponentWhenMoving(Character, false);
+		}
 	}
 }
 
@@ -183,21 +143,7 @@ void APlatformerSoftPlatform::OnBottomCheckBeginOverlap(UPrimitiveComponent* Ove
 	if (ACharacter* Character = Cast<ACharacter>(OtherActor))
 	{
 		CharactersBelowPlatform.Add(Character);
-
-		if (IgnoredCharactersUntilTime.Contains(Character))
-		{
-			return;
-		}
-
-		if (const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement())
-		{
-			// Enable one-way pass-through immediately on first contact from below, before the next Tick
-			// has a chance to lose the upward velocity due to blocking collision against the platform.
-			if (MovementComponent->Velocity.Z > 0.0f)
-			{
-				StartIgnoringCharacter(Character, JumpThroughIgnoreDuration, false);
-			}
-		}
+		SetCharacterIgnoreComponentWhenMoving(Character, true);
 	}
 }
 
@@ -206,38 +152,29 @@ void APlatformerSoftPlatform::OnBottomCheckEndOverlap(UPrimitiveComponent* Overl
 	if (ACharacter* Character = Cast<ACharacter>(OtherActor))
 	{
 		CharactersBelowPlatform.Remove(Character);
+		if (!CharactersAbovePlatform.Contains(Character))
+		{
+			SetCharacterIgnoreComponentWhenMoving(Character, false);
+		}
 	}
 }
 
-bool APlatformerSoftPlatform::IsCharacterStandingOnPlatform(const ACharacter* Character) const
+bool APlatformerSoftPlatform::RequestCharacterDropThrough(ACharacter* Character)
 {
-	if (Character == nullptr)
+	if (Character && CharactersAbovePlatform.Contains(Character))
 	{
-		return false;
+		StartIgnoringCharacter(Character, true);
+		return true;
 	}
-
-	const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-	if ((MovementComponent == nullptr) || !MovementComponent->IsMovingOnGround())
-	{
-		return false;
-	}
-
-	const UPrimitiveComponent* MovementBase = MovementComponent->GetMovementBase();
-	return (MovementBase != nullptr) && (MovementBase->GetOwner() == this);
+	return false;
 }
 
-bool APlatformerSoftPlatform::IsCharacterRequestingDropThrough(const ACharacter* Character) const
+void APlatformerSoftPlatform::SetCharacterIgnoreComponentWhenMoving(ACharacter* Character, bool bShouldIgnore)
 {
-	if (Character == nullptr)
+	if (UPrimitiveComponent* RootPrimitiveComponent = Cast<UPrimitiveComponent>(Character->GetRootComponent()))
 	{
-		return false;
+		RootPrimitiveComponent->IgnoreComponentWhenMoving(Mesh, bShouldIgnore);
 	}
-
-	const UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-	return (MovementComponent != nullptr)
-		&& MovementComponent->IsMovingOnGround()
-		&& Character->bIsCrouched
-		&& Character->bPressedJump;
 }
 
 void APlatformerSoftPlatform::ClearInvalidCharacterSet(TSet<TWeakObjectPtr<ACharacter>>& CharacterSet)
@@ -251,21 +188,14 @@ void APlatformerSoftPlatform::ClearInvalidCharacterSet(TSet<TWeakObjectPtr<AChar
 	}
 }
 
-void APlatformerSoftPlatform::StartIgnoringCharacter(ACharacter* Character, float IgnoreDuration, bool bForceDownwardDrop)
+void APlatformerSoftPlatform::StartIgnoringCharacter(ACharacter* Character, bool bForceDownwardDrop)
 {
 	if (Character == nullptr)
 	{
 		return;
 	}
 
-	if (UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
-	{
-		Capsule->IgnoreActorWhenMoving(this, true);
-	}
-
-	Mesh->IgnoreActorWhenMoving(Character, true);
-	Character->MoveIgnoreActorAdd(this);
-	IgnoredCharactersUntilTime.Add(Character, GetWorld()->GetTimeSeconds() + FMath::Max(IgnoreDuration, 0.01f));
+	SetCharacterIgnoreComponentWhenMoving(Character, true);
 
 	if (bForceDownwardDrop)
 	{
@@ -275,53 +205,6 @@ void APlatformerSoftPlatform::StartIgnoringCharacter(ACharacter* Character, floa
 			Velocity.Z = FMath::Min(Velocity.Z, -DropThroughDownwardSpeed);
 			MovementComponent->Velocity = Velocity;
 			MovementComponent->SetMovementMode(MOVE_Falling);
-		}
-	}
-}
-
-void APlatformerSoftPlatform::StopIgnoringCharacter(ACharacter* Character)
-{
-	if (Character == nullptr)
-	{
-		return;
-	}
-
-	if (UCapsuleComponent* Capsule = Character->GetCapsuleComponent())
-	{
-		Capsule->IgnoreActorWhenMoving(this, false);
-	}
-
-	Mesh->IgnoreActorWhenMoving(Character, false);
-	Character->MoveIgnoreActorRemove(this);
-	IgnoredCharactersUntilTime.Remove(Character);
-}
-
-void APlatformerSoftPlatform::UpdateIgnoredCharacters()
-{
-	if (UWorld* World = GetWorld())
-	{
-		const float CurrentTime = World->GetTimeSeconds();
-		TArray<TWeakObjectPtr<ACharacter>> CharactersToRestore;
-		CharactersToRestore.Reserve(IgnoredCharactersUntilTime.Num());
-
-		for (const TPair<TWeakObjectPtr<ACharacter>, float>& Pair : IgnoredCharactersUntilTime)
-		{
-			if (!Pair.Key.IsValid() || (Pair.Value <= CurrentTime))
-			{
-				CharactersToRestore.Add(Pair.Key);
-			}
-		}
-
-		for (const TWeakObjectPtr<ACharacter>& CharacterPtr : CharactersToRestore)
-		{
-			if (CharacterPtr.IsValid())
-			{
-				StopIgnoringCharacter(CharacterPtr.Get());
-			}
-			else
-			{
-				IgnoredCharactersUntilTime.Remove(CharacterPtr);
-			}
 		}
 	}
 }

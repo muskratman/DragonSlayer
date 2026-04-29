@@ -16,6 +16,11 @@ APlatformerBlock::APlatformerBlock()
 void APlatformerBlock::SetBlockMeshVariant(EPlatformerBlockMeshVariant InBlockMeshVariant)
 {
 	BlockMeshVariant = InBlockMeshVariant;
+	if (UStaticMesh* ResolvedBlockMesh = ResolveBlockStaticMesh())
+	{
+		BlockMesh->SetStaticMesh(ResolvedBlockMesh);
+	}
+	RefreshBlockLayout();
 }
 
 UStaticMesh* APlatformerBlock::ResolveBlockStaticMesh() const

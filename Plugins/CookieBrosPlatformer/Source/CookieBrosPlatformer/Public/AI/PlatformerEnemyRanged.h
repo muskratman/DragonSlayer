@@ -18,6 +18,12 @@ class COOKIEBROSPLATFORMER_API APlatformerEnemyRanged : public APlatformerEnemyB
 public:
 	APlatformerEnemyRanged(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UFUNCTION(BlueprintPure, Category="Combat|Ranged")
+	float GetEnemyProjectileSpeed() const { return ProjectileSpeed; }
+
+	UFUNCTION(BlueprintCallable, Category="Combat|Ranged")
+	void SetEnemyProjectileSpeed(float InProjectileSpeed);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged")
 	TSubclassOf<AEnemyProjectile> ProjectileClass;
@@ -34,8 +40,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged", meta=(ClampMin=0.0, Units="cm"))
 	float RangedAttackRange = 1200.0f;
 
-	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged", meta=(ClampMin=0.0, Units="cm/s"))
-	float ProjectileSpeed = 1500.0f;
+	UPROPERTY(EditAnywhere, Category="Combat|Ranged", meta=(ClampMin=0.0, Units="cm/s"))
+	float ProjectileSpeed = 500.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged", meta=(ClampMin=0.0, Units="s"))
 	float ProjectileLifetime = 5.0f;

@@ -1,5 +1,7 @@
 #include "PlatformerSettings/SPlatformerSettingsWidget.h"
 
+#include "AI/PlatformerEnemyBase.h"
+#include "AI/PlatformerEnemyRanged.h"
 #include "Platformer/Environment/PlatformerConveyor.h"
 #include "Platformer/Environment/PlatformerDangerBlock.h"
 #include "Platformer/Environment/PlatformerDestructibleBlock.h"
@@ -46,7 +48,7 @@ void SPlatformerSettingsWidget::Construct(const FArguments& InArgs)
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->OnFinishedChangingProperties().AddSP(this, &SPlatformerSettingsWidget::HandleSettingsFinishedChanging);
 
-	SelectionSummaryText = LOCTEXT("SelectionPrompt", "Select one supported Platformer Environment actor to edit its quick settings.");
+	SelectionSummaryText = LOCTEXT("SelectionPrompt", "Select one supported Platformer actor to edit its quick settings.");
 
 	ChildSlot
 	[
@@ -115,7 +117,7 @@ void SPlatformerSettingsWidget::RefreshFromSelection()
 	if (SelectedActors.Num() != 1)
 	{
 		ActiveSettingsObject.Reset();
-		SelectionSummaryText = LOCTEXT("SingleSelectionPrompt", "Select exactly one supported Platformer Environment actor.");
+		SelectionSummaryText = LOCTEXT("SingleSelectionPrompt", "Select exactly one supported Platformer actor.");
 		DetailsView->SetObject(nullptr);
 		return;
 	}
@@ -124,7 +126,7 @@ void SPlatformerSettingsWidget::RefreshFromSelection()
 	if (SelectedActor == nullptr)
 	{
 		ActiveSettingsObject.Reset();
-		SelectionSummaryText = LOCTEXT("InvalidSelection", "Select one supported Platformer Environment actor.");
+		SelectionSummaryText = LOCTEXT("InvalidSelection", "Select one supported Platformer actor.");
 		DetailsView->SetObject(nullptr);
 		return;
 	}
@@ -154,6 +156,16 @@ UPlatformerActorSettingsObject* SPlatformerSettingsWidget::CreateSettingsObjectF
 	if (Actor == nullptr)
 	{
 		return nullptr;
+	}
+
+	if (Actor->IsA<APlatformerEnemyRanged>())
+	{
+		return NewObject<UPlatformerRangedEnemySettingsObject>(GetTransientPackage());
+	}
+
+	if (Actor->IsA<APlatformerEnemyBase>())
+	{
+		return NewObject<UPlatformerEnemySettingsObject>(GetTransientPackage());
 	}
 
 	if (Actor->IsA<APlatformerTriggeredLift>())

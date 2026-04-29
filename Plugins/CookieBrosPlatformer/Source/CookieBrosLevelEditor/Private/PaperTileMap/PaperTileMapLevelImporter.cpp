@@ -729,7 +729,11 @@ namespace CookieBrosPaperTileMapImport
 		case EImportedActorKind::Ladder:
 			if (APlatformerLadder* Ladder = Cast<APlatformerLadder>(&SpawnedActor))
 			{
+				FPlatformerComponentTransformOffset ClimbVolumeOffset;
+				ClimbVolumeOffset.RelativeLocation = FVector(0.0f, RequestedBlockSize.Y, 0.0f);
 				Ladder->SetLadderSize(ResolvedRectActorSize);
+				Ladder->SetClimbVolumeTransformOffset(ClimbVolumeOffset);
+				Ladder->SetSnapCharacterDepthToLadder(false);
 			}
 			break;
 

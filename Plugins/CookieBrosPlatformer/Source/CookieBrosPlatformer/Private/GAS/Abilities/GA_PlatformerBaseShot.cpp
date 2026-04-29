@@ -1,5 +1,6 @@
 #include "GAS/Abilities/GA_PlatformerBaseShot.h"
 
+#include "Animation/PlatformerAnimGameplayTags.h"
 #include "Character/PlatformerCharacterBase.h"
 #include "GAS/Attributes/PlatformerCharacterAttributeSet.h"
 #include "Traversal/PlatformerTraversalGameplayTags.h"
@@ -8,7 +9,7 @@ UGA_PlatformerBaseShot::UGA_PlatformerBaseShot()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Combat_Charging);
-	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_SlideDash);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_Dash);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeHang);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeClimb);
 }
@@ -46,6 +47,8 @@ void UGA_PlatformerBaseShot::ActivateAbility(
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+
+	PlayAbilityAnimation(ActorInfo, PlatformerAnimGameplayTags::Anim_Combat_RangedShot);
 
 	LastBaseShotActivationTime = GetAbilityWorldTime(ActorInfo);
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

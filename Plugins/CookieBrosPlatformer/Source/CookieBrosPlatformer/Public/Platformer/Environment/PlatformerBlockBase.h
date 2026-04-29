@@ -27,6 +27,7 @@ public:
 
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void RefreshBlockLayout();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USceneComponent> Root;

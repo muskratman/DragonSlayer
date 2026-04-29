@@ -31,12 +31,18 @@ APlatformerBlockBase::APlatformerBlockBase()
 void APlatformerBlockBase::SetBlockSize(const FVector& InBlockSize)
 {
 	BlockSize = InBlockSize.ComponentMax(FVector::ZeroVector);
+	RefreshBlockLayout();
 }
 
 void APlatformerBlockBase::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	RefreshBlockLayout();
+}
+
+void APlatformerBlockBase::RefreshBlockLayout()
+{
 	PlatformerEnvironment::ApplyRelativeTransform(
 		BlockMeshLayoutRoot,
 		FVector(0.0f, 0.0f, BlockSize.Z * 0.5f),

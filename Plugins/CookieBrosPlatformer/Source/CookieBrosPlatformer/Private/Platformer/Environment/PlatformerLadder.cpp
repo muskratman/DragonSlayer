@@ -37,6 +37,7 @@ APlatformerLadder::APlatformerLadder()
 	ClimbVolume->SetCollisionObjectType(ECC_WorldDynamic);
 	ClimbVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
 	ClimbVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	ClimbVolume->SetGenerateOverlapEvents(true);
 
 	ClimbVolume->OnComponentBeginOverlap.AddDynamic(this, &APlatformerLadder::OnClimbVolumeBeginOverlap);
 	ClimbVolume->OnComponentEndOverlap.AddDynamic(this, &APlatformerLadder::OnClimbVolumeEndOverlap);
@@ -45,12 +46,39 @@ APlatformerLadder::APlatformerLadder()
 void APlatformerLadder::SetLadderSize(const FVector& InLadderSize)
 {
 	LadderSize = InLadderSize.ComponentMax(FVector(1.0f, 1.0f, 1.0f));
+	RefreshLadderLayout();
+}
+
+void APlatformerLadder::SetClimbVolumeTransformOffset(const FPlatformerComponentTransformOffset& InTransformOffset)
+{
+	ClimbVolumeTransformOffset = InTransformOffset;
+	RefreshLadderLayout();
+}
+
+void APlatformerLadder::SetSnapCharacterDepthToLadder(bool bInSnapCharacterDepthToLadder)
+{
+	bSnapCharacterDepthToLadder = bInSnapCharacterDepthToLadder;
+}
+
+float APlatformerLadder::GetClimbBottomWorldZ() const
+{
+	return ClimbVolume ? ClimbVolume->Bounds.GetBox().Min.Z : GetActorLocation().Z;
+}
+
+float APlatformerLadder::GetClimbTopWorldZ() const
+{
+	return ClimbVolume ? ClimbVolume->Bounds.GetBox().Max.Z : GetActorLocation().Z + LadderSize.Z;
 }
 
 void APlatformerLadder::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
+	RefreshLadderLayout();
+}
+
+void APlatformerLadder::RefreshLadderLayout()
+{
 	const FVector ResolvedLadderSize = LadderSize.ComponentMax(FVector(1.0f, 1.0f, 1.0f));
 	FPlatformerComponentTransformOffset ResolvedVisualOffset = LadderMeshTransformOffset;
 	ResolvedVisualOffset.RelativeScale3D = FVector::OneVector;
@@ -89,13 +117,23 @@ void APlatformerLadder::OnConstruction(const FTransform& Transform)
 		}
 	}
 
-	ClimbVolume->SetBoxExtent(ResolvedLadderSize * 0.5f);
+	if (ClimbVolume)
+	{
+		ClimbVolume->SetBoxExtent(ResolvedLadderSize * 0.5f);
+	}
+
 	PlatformerEnvironment::ApplyRelativeTransform(
 		ClimbVolumeLayoutRoot,
 		FVector(0.0f, 0.0f, ResolvedLadderSize.Z * 0.5f),
 		FRotator::ZeroRotator,
 		FVector::OneVector,
 		ClimbVolumeTransformOffset);
+}
+
+void APlatformerLadder::BeginPlay()
+{
+	Super::BeginPlay();
+	SyncOverlappingCharacters();
 }
 
 void APlatformerLadder::OnClimbVolumeBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -111,5 +149,25 @@ void APlatformerLadder::OnClimbVolumeEndOverlap(UPrimitiveComponent* OverlappedC
 	if (APlatformerCharacterBase* PlatformerCharacter = Cast<APlatformerCharacterBase>(OtherActor))
 	{
 		PlatformerCharacter->NotifyLadderUnavailable(this);
+	}
+}
+
+void APlatformerLadder::SyncOverlappingCharacters()
+{
+	if (!ClimbVolume)
+	{
+		return;
+	}
+
+	ClimbVolume->UpdateOverlaps();
+
+	TArray<AActor*> OverlappingCharacters;
+	ClimbVolume->GetOverlappingActors(OverlappingCharacters, APlatformerCharacterBase::StaticClass());
+	for (AActor* OverlappingActor : OverlappingCharacters)
+	{
+		if (APlatformerCharacterBase* PlatformerCharacter = Cast<APlatformerCharacterBase>(OverlappingActor))
+		{
+			PlatformerCharacter->NotifyLadderAvailable(this);
+		}
 	}
 }

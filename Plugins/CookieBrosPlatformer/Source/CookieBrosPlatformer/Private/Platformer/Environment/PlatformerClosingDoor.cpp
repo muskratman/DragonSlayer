@@ -1,6 +1,7 @@
 #include "Platformer/Environment/PlatformerClosingDoor.h"
 
 #include "Character/PlatformerCharacterBase.h"
+#include "Components/ArrowComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Platformer/Environment/PlatformerEnvironmentHelpers.h"
@@ -42,6 +43,8 @@ void APlatformerClosingDoor::BeginPlay()
 	Super::BeginPlay();
 
 	OverlappingCharacters.Empty();
+	OverlapEntryLocations.Empty();
+	bHasPendingPointATriggerTraversal = false;
 	bHasBeenTriggered = bStartAtPointB;
 	SetTriggerEnabled(!bHasBeenTriggered && !IsAtPointB());
 }
@@ -59,9 +62,12 @@ void APlatformerClosingDoor::OnConstruction(const FTransform& Transform)
 		TriggerVolumeTransformOffset);
 }
 
-void APlatformerClosingDoor::Interaction(AActor* Interactor)
+void APlatformerClosingDoor::Interaction(AActor* /*Interactor*/)
 {
-	TryTriggerDoor();
+	if (OverlappingCharacters.Num() == 0 && bHasPendingPointATriggerTraversal)
+	{
+		TryTriggerDoor();
+	}
 }
 
 void APlatformerClosingDoor::ResetInteraction()
@@ -69,6 +75,7 @@ void APlatformerClosingDoor::ResetInteraction()
 	Super::ResetInteraction();
 
 	ClearInvalidOverlappingCharacters();
+	bHasPendingPointATriggerTraversal = false;
 
 	if (IsAtPointA() && !IsMoving())
 	{
@@ -85,6 +92,8 @@ void APlatformerClosingDoor::HandleReachedPointB()
 	Super::HandleReachedPointB();
 
 	OverlappingCharacters.Empty();
+	OverlapEntryLocations.Empty();
+	bHasPendingPointATriggerTraversal = false;
 	SetTriggerEnabled(false);
 }
 
@@ -97,11 +106,7 @@ void APlatformerClosingDoor::OnTriggerBeginOverlap(UPrimitiveComponent* Overlapp
 	}
 
 	OverlappingCharacters.Add(TriggeringCharacter);
-
-	if (!bTriggerOnEndOverlap)
-	{
-		TryTriggerDoor();
-	}
+	OverlapEntryLocations.Add(TWeakObjectPtr<APlatformerCharacterBase>(TriggeringCharacter), TriggeringCharacter->GetActorLocation());
 }
 
 void APlatformerClosingDoor::OnTriggerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -112,10 +117,17 @@ void APlatformerClosingDoor::OnTriggerEndOverlap(UPrimitiveComponent* Overlapped
 		return;
 	}
 
+	const FVector ExitLocation = TriggeringCharacter->GetActorLocation();
+	if (DidCharacterPassInClosingDirection(TriggeringCharacter, ExitLocation))
+	{
+		bHasPendingPointATriggerTraversal = true;
+	}
+
 	OverlappingCharacters.Remove(TriggeringCharacter);
+	OverlapEntryLocations.Remove(TWeakObjectPtr<APlatformerCharacterBase>(TriggeringCharacter));
 	ClearInvalidOverlappingCharacters();
 
-	if (bTriggerOnEndOverlap && OverlappingCharacters.Num() == 0)
+	if (OverlappingCharacters.Num() == 0 && bHasPendingPointATriggerTraversal)
 	{
 		TryTriggerDoor();
 	}
@@ -138,6 +150,79 @@ bool APlatformerClosingDoor::IsValidTriggeringCharacter(AActor* OtherActor, APla
 	return true;
 }
 
+FVector APlatformerClosingDoor::GetTriggerPassDirection() const
+{
+	const FVector TriggerLocation = TriggerVolume ? TriggerVolume->GetComponentLocation() : GetActorLocation() + TriggerBaseRelativeLocation;
+	const FVector PointALocation = PointA ? PointA->GetComponentLocation() : CachedPointALocation;
+
+	FVector Direction = TriggerLocation - PointALocation;
+	Direction.Z = 0.0f;
+	if (!Direction.IsNearlyZero())
+	{
+		return Direction.GetSafeNormal();
+	}
+
+	Direction = GetActorForwardVector();
+	Direction.Z = 0.0f;
+	if (!Direction.IsNearlyZero())
+	{
+		return Direction.GetSafeNormal();
+	}
+
+	return FVector::ForwardVector;
+}
+
+float APlatformerClosingDoor::GetTriggerHalfExtentAlongDirection(const FVector& Direction) const
+{
+	if (!TriggerVolume)
+	{
+		const FVector FallbackExtent = TriggerSize.ComponentMax(FVector(1.0f, 1.0f, 1.0f)) * 0.5f;
+		return FMath::Max3(FallbackExtent.X, FallbackExtent.Y, FallbackExtent.Z);
+	}
+
+	const FVector BoxExtent = TriggerVolume->GetScaledBoxExtent();
+	const FTransform& TriggerTransform = TriggerVolume->GetComponentTransform();
+	return
+		FMath::Abs(FVector::DotProduct(TriggerTransform.GetUnitAxis(EAxis::X), Direction)) * BoxExtent.X +
+		FMath::Abs(FVector::DotProduct(TriggerTransform.GetUnitAxis(EAxis::Y), Direction)) * BoxExtent.Y +
+		FMath::Abs(FVector::DotProduct(TriggerTransform.GetUnitAxis(EAxis::Z), Direction)) * BoxExtent.Z;
+}
+
+bool APlatformerClosingDoor::DidCrossTriggerInClosingDirection(const FVector& EntryLocation, const FVector& ExitLocation) const
+{
+	const FVector PassDirection = GetTriggerPassDirection();
+	const FVector TriggerLocation = TriggerVolume ? TriggerVolume->GetComponentLocation() : GetActorLocation() + TriggerBaseRelativeLocation;
+	const float HalfExtentAlongPassDirection = GetTriggerHalfExtentAlongDirection(PassDirection);
+
+	const float EntrySignedDistance = FVector::DotProduct(EntryLocation - TriggerLocation, PassDirection);
+	const float ExitSignedDistance = FVector::DotProduct(ExitLocation - TriggerLocation, PassDirection);
+
+	FVector HorizontalTravel = ExitLocation - EntryLocation;
+	HorizontalTravel.Z = 0.0f;
+	const float TravelAlongPassDirection = FVector::DotProduct(HorizontalTravel, PassDirection);
+
+	return
+		EntrySignedDistance <= -HalfExtentAlongPassDirection &&
+		ExitSignedDistance >= HalfExtentAlongPassDirection &&
+		TravelAlongPassDirection > 1.0f;
+}
+
+bool APlatformerClosingDoor::DidCharacterPassInClosingDirection(APlatformerCharacterBase* TriggeringCharacter, const FVector& ExitLocation) const
+{
+	if (!TriggeringCharacter)
+	{
+		return false;
+	}
+
+	const FVector* EntryLocation = OverlapEntryLocations.Find(TWeakObjectPtr<APlatformerCharacterBase>(TriggeringCharacter));
+	if (!EntryLocation)
+	{
+		return false;
+	}
+
+	return DidCrossTriggerInClosingDirection(*EntryLocation, ExitLocation);
+}
+
 void APlatformerClosingDoor::TryTriggerDoor()
 {
 	if (bHasBeenTriggered || IsMoving() || IsAtPointB())
@@ -147,6 +232,8 @@ void APlatformerClosingDoor::TryTriggerDoor()
 
 	bHasBeenTriggered = true;
 	OverlappingCharacters.Empty();
+	OverlapEntryLocations.Empty();
+	bHasPendingPointATriggerTraversal = false;
 	SetTriggerEnabled(false);
 	StartMovingToPointB();
 }
@@ -168,6 +255,7 @@ void APlatformerClosingDoor::ClearInvalidOverlappingCharacters()
 	{
 		if (!It->IsValid())
 		{
+			OverlapEntryLocations.Remove(*It);
 			It.RemoveCurrent();
 		}
 	}

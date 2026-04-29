@@ -11,6 +11,36 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "InputAction.h"
+#include "Platformer/Environment/PlatformerDropThroughPlatformComponent.h"
+#include "Platformer/Environment/PlatformerSoftPlatform.h"
+#include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	constexpr float CrouchInputThreshold = -0.5f;
+	const TCHAR* DefaultLookActionPath = TEXT("/Game/Blueprints/Input/Actions/IA_Look.IA_Look");
+
+	float ReadVerticalInputValue(const FInputActionValue& Value)
+	{
+		if (Value.GetValueType() == EInputActionValueType::Axis2D)
+		{
+			return Value.Get<FVector2D>().Y;
+		}
+
+		if (Value.GetValueType() == EInputActionValueType::Axis1D)
+		{
+			return Value.Get<float>();
+		}
+
+		if (Value.GetValueType() == EInputActionValueType::Boolean)
+		{
+			return Value.Get<bool>() ? 1.0f : 0.0f;
+		}
+
+		return 0.0f;
+	}
+}
 
 APlayableDragonCharacter::APlayableDragonCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UPlatformerTraversalMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -27,8 +57,15 @@ APlayableDragonCharacter::APlayableDragonCharacter(const FObjectInitializer& Obj
 
 	if (GetCharacterMovement())
 	{
-		GetCharacterMovement()->bOrientRotationToMovement = true;
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		GetCharacterMovement()->bUseControllerDesiredRotation = false;
 		GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
+	}
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> LookActionAsset(DefaultLookActionPath);
+	if (LookActionAsset.Succeeded())
+	{
+		LookAction = LookActionAsset.Object;
 	}
 }
 
@@ -88,6 +125,12 @@ TSubclassOf<UGameplayAbility> APlayableDragonCharacter::ResolveChargeShotAbility
 void APlayableDragonCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->bOrientRotationToMovement = false;
+		MovementComponent->bUseControllerDesiredRotation = false;
+	}
 
 	if (UPlatformerTraversalComponent* CharacterTraversalComponent = GetTraversalComponent())
 	{
@@ -166,6 +209,12 @@ void APlayableDragonCharacter::SetupPlayerInputComponent(UInputComponent* Player
 			EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &APlayableDragonCharacter::Input_Move);
 			EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Canceled, this, &APlayableDragonCharacter::Input_Move);
 		}
+		if (UInputAction* ResolvedLookAction = ResolveLookAction())
+		{
+			EnhancedInputComponent->BindAction(ResolvedLookAction, ETriggerEvent::Triggered, this, &APlayableDragonCharacter::Input_Look);
+			EnhancedInputComponent->BindAction(ResolvedLookAction, ETriggerEvent::Completed, this, &APlayableDragonCharacter::Input_Look);
+			EnhancedInputComponent->BindAction(ResolvedLookAction, ETriggerEvent::Canceled, this, &APlayableDragonCharacter::Input_Look);
+		}
 		if (JumpAction) {
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &APlayableDragonCharacter::Input_JumpStart);
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &APlayableDragonCharacter::Input_JumpEnd);
@@ -204,24 +253,6 @@ void APlayableDragonCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (IsOnLadder())
-	{
-		if (bLadderClimbUpHeld && !bLadderClimbDownHeld)
-		{
-			AddMovementInput(FVector::UpVector, 1.0f);
-		}
-		else if (bLadderClimbDownHeld && !bLadderClimbUpHeld)
-		{
-			AddMovementInput(FVector::DownVector, 1.0f);
-		}
-		else if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
-		{
-			FVector Velocity = MovementComponent->Velocity;
-			Velocity.Z = 0.0f;
-			MovementComponent->Velocity = Velocity;
-		}
-	}
-
 	// Cap falling speed if gliding
 	if (bIsGliding && GetCharacterMovement()->Velocity.Z < -200.0f)
 	{
@@ -235,7 +266,7 @@ void APlayableDragonCharacter::ApplyDeveloperCharacterSettings(const FDeveloperP
 	ApplyDeveloperChargeShotSettings(DeveloperSettings.DeveloperChargeShotSettings, true);
 	ApplyDeveloperTraversalSettings(
 		DeveloperSettings.DeveloperLedgeSettings,
-		DeveloperSettings.DeveloperSlideDashSettings,
+		DeveloperSettings.DeveloperDashSettings,
 		DeveloperSettings.DeveloperWallSettings,
 		true);
 }
@@ -248,7 +279,7 @@ void APlayableDragonCharacter::ApplyDeveloperSettingsSnapshot(const FPlatformerD
 		DeveloperSettingsSnapshot.bHasSavedChargeShotSettings);
 	ApplyDeveloperTraversalSettings(
 		DeveloperSettingsSnapshot.CharacterSettings.DeveloperLedgeSettings,
-		DeveloperSettingsSnapshot.CharacterSettings.DeveloperSlideDashSettings,
+		DeveloperSettingsSnapshot.CharacterSettings.DeveloperDashSettings,
 		DeveloperSettingsSnapshot.CharacterSettings.DeveloperWallSettings,
 		DeveloperSettingsSnapshot.bHasSavedTraversalSettings);
 }
@@ -269,7 +300,7 @@ FDeveloperPlatformerCharacterSettings APlayableDragonCharacter::CaptureDeveloper
 	if (const UPlatformerTraversalComponent* CharacterTraversalComponent = GetTraversalComponent())
 	{
 		DeveloperSettings.DeveloperLedgeSettings = CharacterTraversalComponent->GetResolvedLedgeSettings();
-		DeveloperSettings.DeveloperSlideDashSettings = CharacterTraversalComponent->GetResolvedSlideDashSettings();
+		DeveloperSettings.DeveloperDashSettings = CharacterTraversalComponent->GetResolvedDashSettings();
 		DeveloperSettings.DeveloperWallSettings = CharacterTraversalComponent->GetResolvedWallSettings();
 	}
 
@@ -320,7 +351,7 @@ void APlayableDragonCharacter::ApplyDeveloperChargeShotSettings(
 
 void APlayableDragonCharacter::ApplyDeveloperTraversalSettings(
 	const FPlatformerLedgeTraversalSettings& DeveloperLedgeSettings,
-	const FPlatformerSlideDashSettings& DeveloperSlideDashSettings,
+	const FPlatformerDashSettings& DeveloperDashSettings,
 	const FPlatformerWallTraversalSettings& DeveloperWallSettings,
 	bool bHasSavedTraversalSettings)
 {
@@ -330,7 +361,7 @@ void APlayableDragonCharacter::ApplyDeveloperTraversalSettings(
 		{
 			CharacterTraversalComponent->SetDeveloperTraversalSettingsOverride(
 				DeveloperLedgeSettings,
-				DeveloperSlideDashSettings,
+				DeveloperDashSettings,
 				DeveloperWallSettings);
 		}
 		else
@@ -383,59 +414,114 @@ void APlayableDragonCharacter::Input_Move(const FInputActionValue& Value)
 			}
 		}
 
-		if (IsOnLadder())
+		const bool bHas2DMoveInput = Value.GetValueType() == EInputActionValueType::Axis2D;
+		const bool bExitedLadderHorizontally =
+			bHas2DMoveInput && HandleLadderHorizontalExitInput(MoveVector.X, LadderLookInputThreshold);
+		if (!bExitedLadderHorizontally && bHas2DMoveInput && HandleLadderClimbInput(MoveVector.Y, LadderLookInputThreshold))
 		{
-			if (!FMath::IsNearlyZero(MoveValue))
-			{
-				AddMovementInput(FVector(1.0f, 0.0f, 0.0f), MoveValue);
-			}
-
 			return;
 		}
-		
-		// In side scrolling, movement is typically along the X axis
+		if (IsOnLadder())
+		{
+			SetLadderClimbInput(0.0f);
+			return;
+		}
+
 		const FVector MoveDir = FVector(1.0f, 0.0f, 0.0f);
 		AddMovementInput(MoveDir, MoveValue);
 
-		// If flying, also allow basic vertical movement based on some context, 
-		// but since we only have left/right bound to Move, we might need a 2D vector for real flying.
-		// For this test, we map simple WASD where Jump/Glide might handle Z, or just rely on the 2D MoveAction.
-		if (GetCharacterMovement()->IsFlying() && Value.GetValueType() == EInputActionValueType::Axis2D)
+		if (GetCharacterMovement()->IsFlying() && bHas2DMoveInput)
 		{
 			AddMovementInput(FVector(0.0f, 0.0f, 1.0f), MoveVector.Y);
+		}
+		else if (bHas2DMoveInput)
+		{
+			if (MoveVector.Y < CrouchInputThreshold)
+			{
+				if (!bMoveCrouchHeld)
+				{
+					bMoveCrouchHeld = true;
+					BeginCrouchRequest(Value);
+				}
+			}
+			else if (bMoveCrouchHeld && MoveVector.IsNearlyZero())
+			{
+				bMoveCrouchHeld = false;
+				if (!bCrouchActionHeld)
+				{
+					EndCrouchRequest(Value);
+				}
+			}
 		}
 	}
 }
 
+void APlayableDragonCharacter::Input_Look(const FInputActionValue& Value)
+{
+	if (Controller == nullptr)
+	{
+		return;
+	}
+
+	const float VerticalLookInput = ReadVerticalInputValue(Value);
+	HandleLadderClimbInput(VerticalLookInput, LadderLookInputThreshold);
+}
+
+UInputAction* APlayableDragonCharacter::ResolveLookAction()
+{
+	if (!LookAction)
+	{
+		LookAction = LoadObject<UInputAction>(nullptr, DefaultLookActionPath);
+	}
+
+	return LookAction;
+}
+
 void APlayableDragonCharacter::Input_JumpStart(const FInputActionValue& Value)
 {
-	bool bCanceledSlideDashForJump = false;
+	bool bCanceledDashForJump = false;
 
 	if (UPlatformerTraversalMovementComponent* TraversalMovementComponent = GetTraversalMovementComponent())
 	{
-		const bool bWasSlideDashing = TraversalMovementComponent->IsSlideDashing();
+		const bool bWasDashing = TraversalMovementComponent->IsDashing();
 		if (TraversalMovementComponent->HandleTraversalJumpPressed())
 		{
 			return;
 		}
 
-		bCanceledSlideDashForJump = bWasSlideDashing && !TraversalMovementComponent->IsSlideDashing();
+		bCanceledDashForJump = bWasDashing && !TraversalMovementComponent->IsDashing();
 	}
 
-	if (!bCanceledSlideDashForJump && IsOnLadder())
+	if (!bCanceledDashForJump && IsOnLadder())
 	{
-		bLadderClimbUpHeld = true;
+		PerformLadderJump();
 		return;
 	}
 
-	if (!bCanceledSlideDashForJump)
+	bool bIsHoldingDown = bIsCrouched || (GetTraversalMovementComponent() && GetTraversalMovementComponent()->GetTraversalInputVector().Y < CrouchInputThreshold);
+	if (bIsHoldingDown)
 	{
-		if (APlatformerLadder* CandidateLadder = GetAvailableLadder())
+		if (UPrimitiveComponent* MovementBase = GetCharacterMovement()->GetMovementBase())
 		{
-			if (EnterLadder(CandidateLadder))
+			AActor* MovementBaseOwner = MovementBase->GetOwner();
+			if (MovementBaseOwner)
 			{
-				bLadderClimbUpHeld = true;
-				return;
+				if (UPlatformerDropThroughPlatformComponent* DropThroughPlatform =
+					MovementBaseOwner->FindComponentByClass<UPlatformerDropThroughPlatformComponent>())
+				{
+					if (DropThroughPlatform->RequestCharacterDropThrough(this))
+					{
+						return;
+					}
+				}
+			}
+
+			if (APlatformerSoftPlatform* SoftPlatform = Cast<APlatformerSoftPlatform>(MovementBaseOwner))
+			{
+				if (SoftPlatform->RequestCharacterDropThrough(this))
+				{
+					return;
+				}
 			}
 		}
 	}
@@ -462,14 +548,12 @@ void APlayableDragonCharacter::Input_JumpEnd(const FInputActionValue& Value)
 		TraversalMovementComponent->HandleTraversalJumpReleased();
 		if (TraversalMovementComponent->IsInCustomTraversalMode())
 		{
-			bLadderClimbUpHeld = false;
 			return;
 		}
 	}
 
-	if (IsOnLadder() || bLadderClimbUpHeld)
+	if (IsOnLadder())
 	{
-		bLadderClimbUpHeld = false;
 		return;
 	}
 
@@ -501,6 +585,27 @@ void APlayableDragonCharacter::Input_Dash(const FInputActionValue& Value)
 
 void APlayableDragonCharacter::Input_CrouchStart(const FInputActionValue& Value)
 {
+	bCrouchActionHeld = true;
+	BeginCrouchRequest(Value);
+}
+
+void APlayableDragonCharacter::Input_CrouchEnd(const FInputActionValue& Value)
+{
+	bCrouchActionHeld = false;
+	if (!bMoveCrouchHeld)
+	{
+		EndCrouchRequest(Value);
+	}
+}
+
+void APlayableDragonCharacter::BeginCrouchRequest(const FInputActionValue& Value)
+{
+	if (IsOnLadder())
+	{
+		PerformLadderCrouch();
+		return;
+	}
+
 	if (UPlatformerTraversalMovementComponent* TraversalMovementComponent = GetTraversalMovementComponent())
 	{
 		if (TraversalMovementComponent->HandleTraversalCrouchPressed())
@@ -509,10 +614,12 @@ void APlayableDragonCharacter::Input_CrouchStart(const FInputActionValue& Value)
 		}
 	}
 
-	if (IsOnLadder())
+	if (const UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
 	{
-		bLadderClimbDownHeld = true;
-		return;
+		if (!MovementComponent->IsMovingOnGround())
+		{
+			return;
+		}
 	}
 
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
@@ -527,21 +634,19 @@ void APlayableDragonCharacter::Input_CrouchStart(const FInputActionValue& Value)
 	Crouch();
 }
 
-void APlayableDragonCharacter::Input_CrouchEnd(const FInputActionValue& Value)
+void APlayableDragonCharacter::EndCrouchRequest(const FInputActionValue& Value)
 {
 	if (UPlatformerTraversalMovementComponent* TraversalMovementComponent = GetTraversalMovementComponent())
 	{
 		TraversalMovementComponent->HandleTraversalCrouchReleased();
 		if (TraversalMovementComponent->IsInCustomTraversalMode())
 		{
-			bLadderClimbDownHeld = false;
 			return;
 		}
 	}
 
-	if (IsOnLadder() || bLadderClimbDownHeld)
+	if (IsOnLadder())
 	{
-		bLadderClimbDownHeld = false;
 		return;
 	}
 
@@ -723,11 +828,10 @@ void APlayableDragonCharacter::OnEnteredLadder(APlatformerLadder* Ladder)
 
 	// Ladder climb uses its own movement state and should not inherit the manual fly toggle flag.
 	bIsFlying = false;
-	bLadderClimbDownHeld = false;
+	SetLadderClimbInput(0.0f);
 }
 
 void APlayableDragonCharacter::OnExitedLadder(APlatformerLadder* Ladder)
 {
-	bLadderClimbUpHeld = false;
-	bLadderClimbDownHeld = false;
+	SetLadderClimbInput(0.0f);
 }

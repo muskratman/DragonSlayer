@@ -1,5 +1,6 @@
 #include "GAS/Abilities/GA_PlatformerChargeeHit.h"
 
+#include "Animation/PlatformerAnimGameplayTags.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
 #include "Traversal/PlatformerTraversalGameplayTags.h"
@@ -24,13 +25,9 @@ void UGA_PlatformerChargeeHit::ActivateAbility(
 	bChargeReleased = false;
 	bFullyCharged = ChargeTime <= 0.0f;
 
-	if (ChargeLoopMontage)
-	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->PlayAnimMontage(ChargeLoopMontage);
-		}
-	}
+	PlayAbilityAnimation(ActorInfo,
+		PlatformerAnimGameplayTags::Anim_Combat_MeleeChargeLoop,
+		ChargeLoopMontage);
 
 	if (bFullyCharged)
 	{
@@ -62,21 +59,13 @@ void UGA_PlatformerChargeeHit::InputReleased(
 
 	bChargeReleased = true;
 
-	if (ChargeLoopMontage)
-	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->StopAnimMontage(ChargeLoopMontage);
-		}
-	}
+	StopAbilityAnimation(ActorInfo,
+		PlatformerAnimGameplayTags::Anim_Combat_MeleeChargeLoop,
+		ChargeLoopMontage);
 
-	if (const UAnimMontage* AttackMontage = GetMeleeHitSettings().AttackMontage)
-	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->PlayAnimMontage(const_cast<UAnimMontage*>(AttackMontage));
-		}
-	}
+	PlayAbilityAnimation(ActorInfo,
+		PlatformerAnimGameplayTags::Anim_Combat_MeleeHit,
+		const_cast<UAnimMontage*>(GetMeleeHitSettings().AttackMontage.Get()));
 
 	const float DamageMultiplier = bFullyCharged ? ChargedDamageMultiplier : 1.0f;
 	const bool bHitTarget = ExecuteConfiguredMeleeHit(Handle, ActorInfo, DamageMultiplier);
@@ -124,13 +113,9 @@ void UGA_PlatformerChargeeHit::ClearChargeState(const FGameplayAbilityActorInfo*
 		World->GetTimerManager().ClearTimer(ChargeTimerHandle);
 	}
 
-	if (ChargeLoopMontage)
-	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->StopAnimMontage(ChargeLoopMontage);
-		}
-	}
+	StopAbilityAnimation(ActorInfo,
+		PlatformerAnimGameplayTags::Anim_Combat_MeleeChargeLoop,
+		ChargeLoopMontage);
 
 	bChargeReleased = false;
 	bFullyCharged = false;

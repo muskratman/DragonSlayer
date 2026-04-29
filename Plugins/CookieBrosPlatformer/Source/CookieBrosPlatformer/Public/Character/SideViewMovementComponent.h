@@ -37,6 +37,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SideView|Jump", meta=(ClampMin=0.0f, ClampMax=3.0f, Units="s"))
 	float JumpBufferTime = 0.15f;
 
+	/** How long it takes to turn around 180 degrees */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SideView|Rotation", meta=(ClampMin=0.0f, Units="s"))
+	float TurnAroundSeconds = 0.15f;
+
+	/** Whether the character is currently facing right (+X) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="SideView|Rotation")
+	bool bFacingRight = true;
+
+	/** Whether the character is currently performing a turn-around */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="SideView|Rotation")
+	bool bTurning = false;
+
+	/** Request a turn around to the opposite direction */
+	UFUNCTION(BlueprintCallable, Category="SideView|Rotation")
+	bool RequestTurnAround();
+
+	UFUNCTION(BlueprintCallable, Category="SideView|Rotation", meta=(ClampMin=0.0, Units="deg/s"))
+	void SetChangeDirectionSpeed(float NewChangeDirectionSpeed);
+
+	UFUNCTION(BlueprintPure, Category="SideView|Rotation", meta=(Units="deg/s"))
+	float GetChangeDirectionSpeed() const;
+
+	virtual void AddInputVector(FVector WorldVector, bool bForce = false) override;
+
 	/** Set a temporary depth lane */
 	UFUNCTION(BlueprintCallable, Category="SideView")
 	void SetDepthLane(float NewY, float TransitionTime = 0.3f);
@@ -62,6 +86,7 @@ public:
 	void NotifyJumpHorizontalSpeedApplied(float HorizontalSpeed, float DirectionSign);
 
 protected:
+	virtual void StartNewPhysics(float deltaTime, int32 Iterations) override;
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
 
 	void EnforceDepthLock(float DeltaTime);

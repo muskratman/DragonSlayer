@@ -1,6 +1,7 @@
 #include "GAS/Abilities/GA_PlatformerCombatAbilityBase.h"
 
 #include "AbilitySystemComponent.h"
+#include "Animation/PlatformerAnimInstance.h"
 #include "Character/PlatformerCharacterBase.h"
 #include "Combat/PlatformerCombatCharacterBase.h"
 #include "GAS/Attributes/PlatformerCharacterAttributeSet.h"
@@ -180,4 +181,84 @@ bool UGA_PlatformerCombatAbilityBase::PerformMeleeHit(
 	}
 
 	return bAppliedAnyDamage;
+}
+
+UPlatformerAnimInstance* UGA_PlatformerCombatAbilityBase::GetPlatformerAnimInstance(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+	if (!Character)
+	{
+		return nullptr;
+	}
+
+	if (USkeletalMeshComponent* Mesh = Character->GetMesh())
+	{
+		return Cast<UPlatformerAnimInstance>(Mesh->GetAnimInstance());
+	}
+
+	return nullptr;
+}
+
+float UGA_PlatformerCombatAbilityBase::PlayAbilityAnimation(
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTag& AnimTag,
+	UAnimMontage* FallbackMontage,
+	float PlayRate) const
+{
+	// Try data-driven lookup first
+	UAnimMontage* Montage = nullptr;
+	if (UPlatformerAnimInstance* AnimInstance = GetPlatformerAnimInstance(ActorInfo))
+	{
+		Montage = AnimInstance->ResolveAbilityMontage(AnimTag);
+	}
+
+	// Fallback to direct montage reference
+	if (!Montage)
+	{
+		Montage = FallbackMontage;
+	}
+
+	if (!Montage)
+	{
+		return 0.0f;
+	}
+
+	ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+	if (!Character)
+	{
+		return 0.0f;
+	}
+
+	return Character->PlayAnimMontage(Montage, PlayRate);
+}
+
+void UGA_PlatformerCombatAbilityBase::StopAbilityAnimation(
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTag& AnimTag,
+	UAnimMontage* FallbackMontage,
+	float BlendOutTime) const
+{
+	// Try data-driven lookup first
+	UAnimMontage* Montage = nullptr;
+	if (UPlatformerAnimInstance* AnimInstance = GetPlatformerAnimInstance(ActorInfo))
+	{
+		Montage = AnimInstance->ResolveAbilityMontage(AnimTag);
+	}
+
+	// Fallback to direct montage reference
+	if (!Montage)
+	{
+		Montage = FallbackMontage;
+	}
+
+	if (!Montage)
+	{
+		return;
+	}
+
+	ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr;
+	if (Character)
+	{
+		Character->StopAnimMontage(Montage);
+	}
 }

@@ -31,13 +31,13 @@ public:
 	float BaseHealth = 100.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="Stats")
-	float BaseDamage = 1.0f;
+	float BaseDamage = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="Stats")
 	float AttackSpeed = 1.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="Stats")
-	float MoveSpeed = 400.0f;
+	float MoveSpeed = 300.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="AI")
 	TObjectPtr<UStateTree> BehaviorTree;
@@ -58,7 +58,10 @@ public:
 	TSubclassOf<AEnemyProjectile> ProjectileClass;
 
 	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged")
-	float ProjectileSpeed = 1500.0f;
+	float ProjectileSpeed = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged")
+	float ProjectileMaxDistance = 600.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category="Combat|Ranged")
 	float ProjectileLifetime = 5.0f;

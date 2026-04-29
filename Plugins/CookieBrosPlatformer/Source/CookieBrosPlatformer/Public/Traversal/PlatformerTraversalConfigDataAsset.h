@@ -18,7 +18,7 @@ public:
 	FPlatformerLedgeTraversalSettings LedgeSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Traversal")
-	FPlatformerSlideDashSettings SlideDashSettings;
+	FPlatformerDashSettings DashSettings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Traversal")
 	FPlatformerWallTraversalSettings WallSettings;

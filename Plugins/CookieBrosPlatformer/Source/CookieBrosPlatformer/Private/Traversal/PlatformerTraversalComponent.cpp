@@ -35,12 +35,12 @@ void UPlatformerTraversalComponent::SetTraversalConfig(UPlatformerTraversalConfi
 
 void UPlatformerTraversalComponent::SetDeveloperTraversalSettingsOverride(
 	const FPlatformerLedgeTraversalSettings& InLedgeSettings,
-	const FPlatformerSlideDashSettings& InSlideDashSettings,
+	const FPlatformerDashSettings& InDashSettings,
 	const FPlatformerWallTraversalSettings& InWallSettings)
 {
 	bHasDeveloperTraversalSettingsOverride = true;
 	DeveloperLedgeSettingsOverride = InLedgeSettings;
-	DeveloperSlideDashSettingsOverride = InSlideDashSettings;
+	DeveloperDashSettingsOverride = InDashSettings;
 	DeveloperWallSettingsOverride = InWallSettings;
 	ApplyTraversalSettings();
 }
@@ -63,14 +63,14 @@ void UPlatformerTraversalComponent::ApplyTraversalSettings()
 	{
 		TraversalMovementComponent->SetTraversalConfig(TraversalConfig);
 		TraversalMovementComponent->SetDefaultLedgeSettings(DefaultLedgeSettings);
-		TraversalMovementComponent->SetDefaultSlideDashSettings(DefaultSlideDashSettings);
+		TraversalMovementComponent->SetDefaultDashSettings(DefaultDashSettings);
 		TraversalMovementComponent->SetDefaultWallSettings(DefaultWallSettings);
 
 		if (bHasDeveloperTraversalSettingsOverride)
 		{
 			TraversalMovementComponent->SetDeveloperTraversalSettingsOverride(
 				DeveloperLedgeSettingsOverride,
-				DeveloperSlideDashSettingsOverride,
+				DeveloperDashSettingsOverride,
 				DeveloperWallSettingsOverride);
 		}
 		else
@@ -92,14 +92,14 @@ FPlatformerLedgeTraversalSettings UPlatformerTraversalComponent::GetResolvedLedg
 	return TraversalConfig ? TraversalConfig->LedgeSettings : DefaultLedgeSettings;
 }
 
-FPlatformerSlideDashSettings UPlatformerTraversalComponent::GetResolvedSlideDashSettings() const
+FPlatformerDashSettings UPlatformerTraversalComponent::GetResolvedDashSettings() const
 {
 	if (bHasDeveloperTraversalSettingsOverride)
 	{
-		return DeveloperSlideDashSettingsOverride;
+		return DeveloperDashSettingsOverride;
 	}
 
-	return TraversalConfig ? TraversalConfig->SlideDashSettings : DefaultSlideDashSettings;
+	return TraversalConfig ? TraversalConfig->DashSettings : DefaultDashSettings;
 }
 
 FPlatformerWallTraversalSettings UPlatformerTraversalComponent::GetResolvedWallSettings() const

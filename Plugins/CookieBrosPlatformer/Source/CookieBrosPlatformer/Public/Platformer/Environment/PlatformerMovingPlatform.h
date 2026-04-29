@@ -9,6 +9,8 @@
 #include "PlatformerMovingPlatform.generated.h"
 
 class UArrowComponent;
+class UBoxComponent;
+class UPlatformerDropThroughPlatformComponent;
 class USceneComponent;
 class USplineComponent;
 class UStaticMeshComponent;
@@ -65,6 +67,21 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UStaticMeshComponent> PlatformMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<USceneComponent> DropThroughTopCheckLayoutRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<UBoxComponent> DropThroughTopCheckBox;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<USceneComponent> DropThroughBottomCheckLayoutRoot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<UBoxComponent> DropThroughBottomCheckBox;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<UPlatformerDropThroughPlatformComponent> DropThroughPlatformComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<USceneComponent> PointALayoutRoot;

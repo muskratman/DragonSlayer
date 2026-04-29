@@ -5,6 +5,8 @@
 #include "PlatformerSettingsObjects.generated.h"
 
 class AActor;
+class APlatformerEnemyBase;
+class APlatformerEnemyRanged;
 class APlatformerTeleporter;
 
 UCLASS(Abstract, Transient)
@@ -101,6 +103,62 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(DisplayName="Gravity Multiplier"))
 	float GravityMultiplier = 0.3f;
+};
+
+UCLASS(Transient)
+class UPlatformerEnemySettingsObject : public UPlatformerActorSettingsObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void PullFromActor(AActor* Actor) override;
+	virtual void PushToActor() override;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=1.0, DisplayName="Health"))
+	float Health = 100.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=1.0, Units="cm/s", DisplayName="Movement Speed"))
+	float MovementSpeed = 300.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, DisplayName="Damage"))
+	float Damage = 10.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="s", DisplayName="Hit Delay"))
+	float HitDelay = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="s", DisplayName="Patrol Delay Time"))
+	float PatrolDelayTime = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(DisplayName="Enable Player Chase"))
+	bool bEnablePlayerChase = false;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="cm", DisplayName="Chase Agro Radius"))
+	float ChaseAgroRadius = 300.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(DisplayName="Patrol Points (Relative)", MakeEditWidget=true))
+	TArray<FVector> PatrolPoints;
+
+protected:
+	APlatformerEnemyBase* GetEditedEnemy() const;
+};
+
+UCLASS(Transient)
+class UPlatformerRangedEnemySettingsObject : public UPlatformerEnemySettingsObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void PullFromActor(AActor* Actor) override;
+	virtual void PushToActor() override;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="cm/s", DisplayName="Projectile Speed"))
+	float ProjectileSpeed = 500.0f;
+
+	UPROPERTY(EditAnywhere, Category="Quick Settings", meta=(ClampMin=0.0, Units="cm", DisplayName="Projectile Distance"))
+	float ProjectileDistance = 600.0f;
+
+private:
+	APlatformerEnemyRanged* GetEditedRangedEnemy() const;
 };
 
 UCLASS(Transient)

@@ -49,7 +49,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Closing Door|Components")
 	FPlatformerComponentTransformOffset TriggerVolumeTransformOffset;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Closing Door|Behaviour")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Closing Door|Behaviour", meta=(DeprecatedProperty, DeprecationMessage="Closing doors now trigger only after the trigger volume is crossed from the PointA side through the opposite side."))
 	bool bTriggerOnEndOverlap = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Closing Door|Behaviour")
@@ -59,6 +59,8 @@ protected:
 	bool bHasBeenTriggered = false;
 
 	TSet<TWeakObjectPtr<APlatformerCharacterBase>> OverlappingCharacters;
+	TMap<TWeakObjectPtr<APlatformerCharacterBase>, FVector> OverlapEntryLocations;
+	bool bHasPendingPointATriggerTraversal = false;
 
 	UFUNCTION()
 	void OnTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -67,6 +69,10 @@ protected:
 	void OnTriggerEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	bool IsValidTriggeringCharacter(AActor* OtherActor, APlatformerCharacterBase*& OutCharacter) const;
+	FVector GetTriggerPassDirection() const;
+	float GetTriggerHalfExtentAlongDirection(const FVector& Direction) const;
+	bool DidCrossTriggerInClosingDirection(const FVector& EntryLocation, const FVector& ExitLocation) const;
+	bool DidCharacterPassInClosingDirection(APlatformerCharacterBase* TriggeringCharacter, const FVector& ExitLocation) const;
 	void TryTriggerDoor();
 	void SetTriggerEnabled(bool bEnabled);
 	void ClearInvalidOverlappingCharacters();

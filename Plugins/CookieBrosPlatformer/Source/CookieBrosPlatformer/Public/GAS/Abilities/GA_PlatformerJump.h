@@ -42,8 +42,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Jump|Horizontal", meta=(ClampMin="0.0", Units="cm/s"))
 	float JumpHorizontalSpeed = 0.0f;
 
-	void ApplyHorizontalJumpSpeedDeferred(TWeakObjectPtr<class ACharacter> Character, float DirectionSign);
-	virtual void ApplyHorizontalJumpSpeed(class ACharacter* Character, float DirectionSign) const;
+	void ApplyHorizontalJumpSpeedDeferred(TWeakObjectPtr<class ACharacter> Character, float DirectionSign, float PreservedHorizontalSpeed);
+	virtual void ApplyHorizontalJumpSpeed(class ACharacter* Character, float DirectionSign, float PreservedHorizontalSpeed = 0.0f) const;
 	virtual EPlatformerJumpHorizontalSpeedMode ResolveHorizontalJumpSpeedMode(const class ACharacter* Character) const;
 	virtual float ResolveHorizontalJumpSpeed(const class ACharacter* Character) const;
 	virtual float ResolveHorizontalJumpDirection(const class ACharacter* Character) const;

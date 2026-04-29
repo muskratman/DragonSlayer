@@ -1,6 +1,7 @@
 #include "GAS/Abilities/GA_PlatformerChargeShot.h"
 
 #include "AbilitySystemComponent.h"
+#include "Animation/PlatformerAnimGameplayTags.h"
 #include "Character/PlatformerCharacterBase.h"
 #include "GameFramework/Character.h"
 #include "GAS/Attributes/PlatformerCharacterAttributeSet.h"
@@ -11,7 +12,7 @@ UGA_PlatformerChargeShot::UGA_PlatformerChargeShot()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	ActivationOwnedTags.AddTag(PlatformerTraversalGameplayTags::State_Combat_Charging);
-	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_SlideDash);
+	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_Dash);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeHang);
 	ActivationBlockedTags.AddTag(PlatformerTraversalGameplayTags::State_Movement_LedgeClimb);
 }
@@ -56,10 +57,9 @@ void UGA_PlatformerChargeShot::ActivateAbility(
 
 	if (UAnimMontage* ChargeMontage = GetChargeLoopMontage(ActorInfo))
 	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->PlayAnimMontage(ChargeMontage);
-		}
+		PlayAbilityAnimation(ActorInfo,
+			PlatformerAnimGameplayTags::Anim_Combat_RangedChargeLoop,
+			ChargeMontage);
 	}
 
 	if (UWorld* World = GetWorld())
@@ -255,10 +255,9 @@ void UGA_PlatformerChargeShot::ClearChargeState(const FGameplayAbilityActorInfo*
 
 	if (UAnimMontage* ChargeMontage = GetChargeLoopMontage(ActorInfo))
 	{
-		if (ACharacter* Character = ActorInfo ? Cast<ACharacter>(ActorInfo->AvatarActor.Get()) : nullptr)
-		{
-			Character->StopAnimMontage(ChargeMontage);
-		}
+		StopAbilityAnimation(ActorInfo,
+			PlatformerAnimGameplayTags::Anim_Combat_RangedChargeLoop,
+			ChargeMontage);
 	}
 
 	CurrentChargeStage = EPlatformerChargeShotStage::None;

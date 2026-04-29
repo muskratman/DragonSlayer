@@ -1,6 +1,8 @@
 #include "GAS/Abilities/GA_PlatformerHitReaction.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Animation/PlatformerAnimGameplayTags.h"
+#include "Animation/PlatformerAnimInstance.h"
 #include "GAS/PlatformerGameplayTags.h"
 
 UGA_PlatformerHitReaction::UGA_PlatformerHitReaction()
@@ -25,7 +27,19 @@ void UGA_PlatformerHitReaction::ActivateAbility(
 		return;
 	}
 
-	if (UAnimMontage* HitReactionMontage = GetHitReactionMontage(ActorInfo))
+	// Try data-driven lookup first, then fall back to virtual method
+	UAnimMontage* HitReactionMontage = nullptr;
+	if (UPlatformerAnimInstance* AnimInstance = GetPlatformerAnimInstance(ActorInfo))
+	{
+		HitReactionMontage = AnimInstance->ResolveAbilityMontage(
+			PlatformerAnimGameplayTags::Anim_Combat_HitReaction);
+	}
+	if (!HitReactionMontage)
+	{
+		HitReactionMontage = GetHitReactionMontage(ActorInfo);
+	}
+
+	if (HitReactionMontage)
 	{
 		if (UAbilityTask_PlayMontageAndWait* Task = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,

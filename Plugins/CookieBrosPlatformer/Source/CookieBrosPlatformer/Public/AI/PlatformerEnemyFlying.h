@@ -15,4 +15,7 @@ class COOKIEBROSPLATFORMER_API APlatformerEnemyFlying : public APlatformerEnemyB
 
 public:
 	APlatformerEnemyFlying(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+protected:
+	virtual void BeginPlay() override;
 };

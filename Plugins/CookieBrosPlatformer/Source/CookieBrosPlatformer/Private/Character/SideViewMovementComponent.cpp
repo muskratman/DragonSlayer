@@ -1,6 +1,12 @@
 #include "Character/SideViewMovementComponent.h"
 
+#include "Character/PlatformerCharacterBase.h"
 #include "Traversal/PlatformerTraversalMovementComponent.h"
+
+namespace
+{
+	constexpr float ChangeDirectionYawDegrees = 180.0f;
+}
 
 USideViewMovementComponent::USideViewMovementComponent()
 {
@@ -17,6 +23,9 @@ USideViewMovementComponent::USideViewMovementComponent()
 	DefaultGravityScale = GravityScale;
 	bHasExternalGravityScaleOverride = false;
 	ExternalGravityScaleOverride = GravityScale;
+
+	bOrientRotationToMovement = false;
+	bUseControllerDesiredRotation = false;
 }
 
 void USideViewMovementComponent::InitializeComponent()
@@ -217,3 +226,95 @@ void USideViewMovementComponent::UpdateJumpHorizontalSpeedProtection()
 		ClearJumpHorizontalSpeedProtection();
 	}
 }
+
+bool USideViewMovementComponent::RequestTurnAround()
+{
+	if (bTurning) { return false; }
+	bTurning = true;
+	bFacingRight = !bFacingRight;
+	return true;
+}
+
+void USideViewMovementComponent::SetChangeDirectionSpeed(float NewChangeDirectionSpeed)
+{
+	if (NewChangeDirectionSpeed <= KINDA_SMALL_NUMBER)
+	{
+		TurnAroundSeconds = 0.0f;
+		return;
+	}
+
+	TurnAroundSeconds = ChangeDirectionYawDegrees / NewChangeDirectionSpeed;
+}
+
+float USideViewMovementComponent::GetChangeDirectionSpeed() const
+{
+	const float EffectiveTurnAroundSeconds = FMath::Max(TurnAroundSeconds, 0.001f);
+	return ChangeDirectionYawDegrees / EffectiveTurnAroundSeconds;
+}
+
+void USideViewMovementComponent::AddInputVector(FVector WorldVector, bool bForce)
+{
+	bool bIsRightMotion = WorldVector.X > 0.0f;
+	
+	// Only intervene if movement is primarily along X axis
+	if (FMath::Abs(WorldVector.X) > KINDA_SMALL_NUMBER)
+	{
+		if (bIsRightMotion == bFacingRight)
+		{
+			Super::AddInputVector(WorldVector, bForce);
+		}
+		else if (!bTurning)
+		{
+			RequestTurnAround();
+		}
+	}
+	else
+	{
+		Super::AddInputVector(WorldVector, bForce);
+	}
+}
+
+void USideViewMovementComponent::StartNewPhysics(float deltaTime, int32 Iterations)
+{
+	if (CharacterOwner)
+	{
+		APlatformerCharacterBase* PlatformerChar = Cast<APlatformerCharacterBase>(CharacterOwner);
+		bool bIsOnLadder = PlatformerChar && PlatformerChar->IsOnLadder();
+
+		if (!bIsOnLadder)
+		{
+			FRotator CurrentRot = UpdatedComponent->GetComponentRotation();
+			FRotator TargetRot = bFacingRight ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f);
+
+			float DeltaYaw = FMath::FindDeltaAngleDegrees(CurrentRot.Yaw, TargetRot.Yaw);
+
+			if (FMath::Abs(DeltaYaw) > KINDA_SMALL_NUMBER)
+			{
+				float TurnRate = ChangeDirectionYawDegrees / FMath::Max(TurnAroundSeconds, 0.001f);
+				
+				if (FMath::Abs(DeltaYaw) > 170.0f)
+				{
+					// Keep 180-degree turns on the gameplay-facing side of the camera plane.
+					float Sign = bFacingRight ? -1.0f : 1.0f;
+					float Step = Sign * TurnRate * deltaTime;
+					CurrentRot.Yaw += Step;
+					CurrentRot.Normalize();
+				}
+				else
+				{
+					CurrentRot = FMath::RInterpConstantTo(CurrentRot, TargetRot, deltaTime, TurnRate);
+				}
+
+				FHitResult Hit(1.0f);
+				SafeMoveUpdatedComponent(FVector::ZeroVector, CurrentRot.Quaternion(), false, Hit);
+			}
+			else
+			{
+				bTurning = false;
+			}
+		}
+	}
+
+	Super::StartNewPhysics(deltaTime, Iterations);
+}
+

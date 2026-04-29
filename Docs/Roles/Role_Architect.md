@@ -84,5 +84,13 @@ DragonSlayer — это 3D side-view action platformer на Unreal Engine 5.6 с
 5. GAS / StateTree / DataAsset consistency
 6. Практичность под текущий production path
 
+Контекст-документы проекта:
+- [Context_DeveloperSettings](../ProjectSystems/Context_DeveloperSettings.md) — runtime developer tuning panel: save/load slots, widget flow, snapshot model, apply/capture для character и camera manager.
+- [Context_PaperTileMap](../ProjectSystems/Context_PaperTileMap.md) — editor pipeline импорта Paper2D TileMap в generated platformer level, mapping rules, spawn/configure flow и ограничения генерации.
+- [Context_PlatformerSettings](../ProjectSystems/Context_PlatformerSettings.md) — editor quick settings panel для выбранных Platformer actors, transient settings objects, supported actors и enemy quick settings.
+
+Сборка и очистка проекта:
+- [Git Commands.txt](../../Git%20Commands.txt) — справочный документ, где можно взять команды для сборки и очистки проекта. Используй только как ориентир: конкретные команды зависят от ПК, путей, установленной версии Unreal и окружения.
+
 
 Напиши, "ГОТОВ" когда будешь готов к работе.

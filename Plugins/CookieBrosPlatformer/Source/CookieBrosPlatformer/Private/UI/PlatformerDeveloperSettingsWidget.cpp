@@ -201,7 +201,7 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperSettingsSnapshotIntoWidget
 		if (!DeveloperSettingsSnapshot.bHasSavedTraversalSettings)
 		{
 			ResolvedCharacterSettings.DeveloperLedgeSettings = RuntimeCharacterSettings.DeveloperLedgeSettings;
-			ResolvedCharacterSettings.DeveloperSlideDashSettings = RuntimeCharacterSettings.DeveloperSlideDashSettings;
+			ResolvedCharacterSettings.DeveloperDashSettings = RuntimeCharacterSettings.DeveloperDashSettings;
 			ResolvedCharacterSettings.DeveloperWallSettings = RuntimeCharacterSettings.DeveloperWallSettings;
 		}
 	}
@@ -258,7 +258,7 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperCharacterSettingsIntoWidge
 		DeveloperSettings.DeveloperCombatSettings);
 	LoadDeveloperTraversalSettingsIntoWidgets(
 		DeveloperSettings.DeveloperLedgeSettings,
-		DeveloperSettings.DeveloperSlideDashSettings,
+		DeveloperSettings.DeveloperDashSettings,
 		DeveloperSettings.DeveloperWallSettings);
 }
 
@@ -343,6 +343,12 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperMovementSettingsIntoWidget
 	if (Movement_MaxWalkSpeed)
 	{
 		Movement_MaxWalkSpeed->SetParameterValue(DeveloperCharacterMovementSettings.DeveloperMovementMaxWalkSpeed);
+	}
+
+	if (Movement_ChangeDirectionSpeed)
+	{
+		Movement_ChangeDirectionSpeed->SetParameterValue(
+			DeveloperCharacterMovementSettings.DeveloperMovementChangeDirectionSpeed);
 	}
 
 	if (Movement_MaxFlySpeed)
@@ -495,7 +501,7 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperChargeShotSettingsIntoWidg
 
 void UPlatformerDeveloperSettingsWidget::LoadDeveloperTraversalSettingsIntoWidgets(
 	const FPlatformerLedgeTraversalSettings& DeveloperLedgeSettings,
-	const FPlatformerSlideDashSettings& DeveloperSlideDashSettings,
+	const FPlatformerDashSettings& DeveloperDashSettings,
 	const FPlatformerWallTraversalSettings& DeveloperWallSettings)
 {
 	if (Ledge_DetectionDistance)
@@ -521,6 +527,11 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperTraversalSettingsIntoWidge
 	if (Ledge_TopSurfaceForwardOffset)
 	{
 		Ledge_TopSurfaceForwardOffset->SetParameterValue(DeveloperLedgeSettings.TopSurfaceProbeForwardOffset);
+	}
+
+	if (Ledge_TopPointHorizontalOffset)
+	{
+		Ledge_TopPointHorizontalOffset->SetParameterValue(DeveloperLedgeSettings.TopPointHorizontalOffset);
 	}
 
 	if (Ledge_HangForwardOffset)
@@ -550,27 +561,27 @@ void UPlatformerDeveloperSettingsWidget::LoadDeveloperTraversalSettingsIntoWidge
 
 	if (Dash_DashSpeed)
 	{
-		Dash_DashSpeed->SetParameterValue(DeveloperSlideDashSettings.DashSpeed);
+		Dash_DashSpeed->SetParameterValue(DeveloperDashSettings.DashSpeed);
 	}
 
 	if (Dash_DashDistance)
 	{
-		Dash_DashDistance->SetParameterValue(DeveloperSlideDashSettings.DashDistance);
+		Dash_DashDistance->SetParameterValue(DeveloperDashSettings.DashDistance);
 	}
 
 	if (Dash_DashDuration)
 	{
-		Dash_DashDuration->SetParameterValue(DeveloperSlideDashSettings.DashDuration);
+		Dash_DashDuration->SetParameterValue(DeveloperDashSettings.DashDuration);
 	}
 
 	if (Dash_DashRecovery)
 	{
-		Dash_DashRecovery->SetParameterValue(DeveloperSlideDashSettings.DashRecovery);
+		Dash_DashRecovery->SetParameterValue(DeveloperDashSettings.DashRecovery);
 	}
 
 	if (Dash_DashHitboxScale)
 	{
-		Dash_DashHitboxScale->SetParameterValue(DeveloperSlideDashSettings.DashHitboxScale);
+		Dash_DashHitboxScale->SetParameterValue(DeveloperDashSettings.DashHitboxScale);
 	}
 
 	if (Wall_ProbeDistance)
@@ -734,8 +745,8 @@ FDeveloperPlatformerCharacterSettings UPlatformerDeveloperSettingsWidget::BuildD
 		DeveloperSettings.DeveloperChargeShotSettings,
 		DeveloperSettings.DeveloperCombatSettings);
 	DeveloperSettings.DeveloperLedgeSettings = BuildDeveloperLedgeSettingsFromWidgets(DeveloperSettings.DeveloperLedgeSettings);
-	DeveloperSettings.DeveloperSlideDashSettings = BuildDeveloperSlideDashSettingsFromWidgets(
-		DeveloperSettings.DeveloperSlideDashSettings);
+	DeveloperSettings.DeveloperDashSettings = BuildDeveloperDashSettingsFromWidgets(
+		DeveloperSettings.DeveloperDashSettings);
 	DeveloperSettings.DeveloperWallSettings = BuildDeveloperWallSettingsFromWidgets(DeveloperSettings.DeveloperWallSettings);
 
 	return DeveloperSettings;
@@ -837,6 +848,12 @@ FDeveloperPlatformerCharacterMovementSettings UPlatformerDeveloperSettingsWidget
 	if (Movement_MaxWalkSpeed)
 	{
 		DeveloperCharacterMovementSettings.DeveloperMovementMaxWalkSpeed = Movement_MaxWalkSpeed->GetEditableParameterValue();
+	}
+
+	if (Movement_ChangeDirectionSpeed)
+	{
+		DeveloperCharacterMovementSettings.DeveloperMovementChangeDirectionSpeed =
+			Movement_ChangeDirectionSpeed->GetEditableParameterValue();
 	}
 
 	if (Movement_MaxFlySpeed)
@@ -1031,6 +1048,11 @@ FPlatformerLedgeTraversalSettings UPlatformerDeveloperSettingsWidget::BuildDevel
 		DeveloperLedgeSettings.TopSurfaceProbeForwardOffset = Ledge_TopSurfaceForwardOffset->GetEditableParameterValue();
 	}
 
+	if (Ledge_TopPointHorizontalOffset)
+	{
+		DeveloperLedgeSettings.TopPointHorizontalOffset = Ledge_TopPointHorizontalOffset->GetEditableParameterValue();
+	}
+
 	if (Ledge_HangForwardOffset)
 	{
 		DeveloperLedgeSettings.HangForwardOffset = Ledge_HangForwardOffset->GetEditableParameterValue();
@@ -1059,37 +1081,37 @@ FPlatformerLedgeTraversalSettings UPlatformerDeveloperSettingsWidget::BuildDevel
 	return DeveloperLedgeSettings;
 }
 
-FPlatformerSlideDashSettings UPlatformerDeveloperSettingsWidget::BuildDeveloperSlideDashSettingsFromWidgets(
-	const FPlatformerSlideDashSettings& BaseDeveloperSlideDashSettings) const
+FPlatformerDashSettings UPlatformerDeveloperSettingsWidget::BuildDeveloperDashSettingsFromWidgets(
+	const FPlatformerDashSettings& BaseDeveloperDashSettings) const
 {
-	FPlatformerSlideDashSettings DeveloperSlideDashSettings = BaseDeveloperSlideDashSettings;
+	FPlatformerDashSettings DeveloperDashSettings = BaseDeveloperDashSettings;
 
 	if (Dash_DashSpeed)
 	{
-		DeveloperSlideDashSettings.DashSpeed = Dash_DashSpeed->GetEditableParameterValue();
+		DeveloperDashSettings.DashSpeed = Dash_DashSpeed->GetEditableParameterValue();
 	}
 
 	if (Dash_DashDistance)
 	{
-		DeveloperSlideDashSettings.DashDistance = Dash_DashDistance->GetEditableParameterValue();
+		DeveloperDashSettings.DashDistance = Dash_DashDistance->GetEditableParameterValue();
 	}
 
 	if (Dash_DashDuration)
 	{
-		DeveloperSlideDashSettings.DashDuration = Dash_DashDuration->GetEditableParameterValue();
+		DeveloperDashSettings.DashDuration = Dash_DashDuration->GetEditableParameterValue();
 	}
 
 	if (Dash_DashRecovery)
 	{
-		DeveloperSlideDashSettings.DashRecovery = Dash_DashRecovery->GetEditableParameterValue();
+		DeveloperDashSettings.DashRecovery = Dash_DashRecovery->GetEditableParameterValue();
 	}
 
 	if (Dash_DashHitboxScale)
 	{
-		DeveloperSlideDashSettings.DashHitboxScale = Dash_DashHitboxScale->GetEditableParameterValue();
+		DeveloperDashSettings.DashHitboxScale = Dash_DashHitboxScale->GetEditableParameterValue();
 	}
 
-	return DeveloperSlideDashSettings;
+	return DeveloperDashSettings;
 }
 
 FPlatformerWallTraversalSettings UPlatformerDeveloperSettingsWidget::BuildDeveloperWallSettingsFromWidgets(
@@ -1228,6 +1250,7 @@ bool UPlatformerDeveloperSettingsWidget::HasDeveloperTraversalWidgetBindings() c
 		|| Ledge_MinHangHeight
 		|| Ledge_ForwardProbeRadius
 		|| Ledge_TopSurfaceForwardOffset
+		|| Ledge_TopPointHorizontalOffset
 		|| Ledge_HangForwardOffset
 		|| Ledge_HangVerticalOffset
 		|| Ledge_ClimbSpeed

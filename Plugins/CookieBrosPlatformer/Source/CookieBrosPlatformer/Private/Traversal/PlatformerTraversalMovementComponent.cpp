@@ -33,16 +33,15 @@ UPlatformerTraversalMovementComponent::UPlatformerTraversalMovementComponent()
 void UPlatformerTraversalMovementComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
-	CacheCapsuleState();
 }
 
 void UPlatformerTraversalMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (bPendingCapsuleRestore && TraversalState != EPlatformerTraversalState::SlideDash)
+	if (bWallJumpStateActive && GetWorldTimeSafe() >= WallJumpStateEndTime)
 	{
-		RestoreCapsuleSizeIfPossible();
+		ClearWallJumpState();
 	}
 
 	UpdateAutomaticTraversal();
@@ -64,8 +63,8 @@ void UPlatformerTraversalMovementComponent::PhysCustom(float DeltaTime, int32 It
 		PhysWallSlide(DeltaTime, Iterations);
 		return;
 
-	case EPlatformerTraversalCustomMode::SlideDash:
-		PhysSlideDash(DeltaTime, Iterations);
+	case EPlatformerTraversalCustomMode::Dash:
+		PhysDash(DeltaTime, Iterations);
 		return;
 
 	default:
@@ -92,11 +91,16 @@ void UPlatformerTraversalMovementComponent::OnMovementModeChanged(EMovementMode 
 		}
 	}
 
+	if (MovementMode != MOVE_Falling && bWallJumpStateActive)
+	{
+		ClearWallJumpState();
+	}
+
 	if (MovementMode != MOVE_Custom && TraversalState != EPlatformerTraversalState::None)
 	{
-		if (TraversalState == EPlatformerTraversalState::SlideDash)
+		if (TraversalState == EPlatformerTraversalState::Dash)
 		{
-			FinishSlideDash(true, MovementMode == MOVE_Falling);
+			FinishDash(true, MovementMode == MOVE_Falling);
 		}
 		else if (TraversalState == EPlatformerTraversalState::WallSlide)
 		{
@@ -138,9 +142,9 @@ void UPlatformerTraversalMovementComponent::SetDefaultLedgeSettings(const FPlatf
 	DefaultLedgeSettings = InSettings;
 }
 
-void UPlatformerTraversalMovementComponent::SetDefaultSlideDashSettings(const FPlatformerSlideDashSettings& InSettings)
+void UPlatformerTraversalMovementComponent::SetDefaultDashSettings(const FPlatformerDashSettings& InSettings)
 {
-	DefaultSlideDashSettings = InSettings;
+	DefaultDashSettings = InSettings;
 }
 
 void UPlatformerTraversalMovementComponent::SetDefaultWallSettings(const FPlatformerWallTraversalSettings& InSettings)
@@ -150,12 +154,12 @@ void UPlatformerTraversalMovementComponent::SetDefaultWallSettings(const FPlatfo
 
 void UPlatformerTraversalMovementComponent::SetDeveloperTraversalSettingsOverride(
 	const FPlatformerLedgeTraversalSettings& InLedgeSettings,
-	const FPlatformerSlideDashSettings& InSlideDashSettings,
+	const FPlatformerDashSettings& InDashSettings,
 	const FPlatformerWallTraversalSettings& InWallSettings)
 {
 	bHasDeveloperTraversalSettingsOverride = true;
 	DeveloperLedgeSettingsOverride = InLedgeSettings;
-	DeveloperSlideDashSettingsOverride = InSlideDashSettings;
+	DeveloperDashSettingsOverride = InDashSettings;
 	DeveloperWallSettingsOverride = InWallSettings;
 }
 
@@ -168,9 +172,9 @@ void UPlatformerTraversalMovementComponent::SetTraversalInputVector(FVector2D In
 {
 	TraversalInputVector = InTraversalInputVector;
 
-	if (TraversalState == EPlatformerTraversalState::SlideDash && ShouldCancelSlideDashFromInput())
+	if (TraversalState == EPlatformerTraversalState::Dash && ShouldCancelDashFromInput())
 	{
-		FinishSlideDash(true, false);
+		FinishDash(true, false);
 	}
 }
 
@@ -189,13 +193,13 @@ bool UPlatformerTraversalMovementComponent::HandleTraversalJumpPressed()
 
 	if (TraversalState == EPlatformerTraversalState::WallSlide)
 	{
-		PerformWallKick();
+		PerformWallJump();
 		return true;
 	}
 
-	if (TraversalState == EPlatformerTraversalState::SlideDash)
+	if (TraversalState == EPlatformerTraversalState::Dash)
 	{
-		FinishSlideDash(true, false);
+		FinishDash(true, false);
 		return false;
 	}
 
@@ -226,18 +230,18 @@ void UPlatformerTraversalMovementComponent::HandleTraversalCrouchReleased()
 {
 }
 
-bool UPlatformerTraversalMovementComponent::StartSlideDash()
+bool UPlatformerTraversalMovementComponent::StartDash()
 {
 	if (!bTraversalEnabled || !CharacterOwner || !UpdatedComponent)
 	{
 		return false;
 	}
 
-	const FPlatformerSlideDashSettings& SlideDashSettings = GetSlideDashSettings();
-	if (!SlideDashSettings.bEnabled
+	const FPlatformerDashSettings& DashSettings = GetDashSettings();
+	if (!DashSettings.bEnabled
 		|| !IsMovingOnGround()
 		|| TraversalState != EPlatformerTraversalState::None
-		|| GetWorldTimeSafe() < SlideDashRecoveryEndTime)
+		|| GetWorldTimeSafe() < DashRecoveryEndTime)
 	{
 		return false;
 	}
@@ -248,13 +252,12 @@ bool UPlatformerTraversalMovementComponent::StartSlideDash()
 		return false;
 	}
 
-	SlideDashStartTime = GetWorldTimeSafe();
-	SlideDashStartLocation = UpdatedComponent->GetComponentLocation();
-	SlideDashDirectionSign = DirectionSign;
-	Velocity = FVector(SlideDashDirectionSign * SlideDashSettings.DashSpeed, 0.0f, 0.0f);
-	ApplySlideDashCapsule();
-	SetMovementMode(MOVE_Custom, static_cast<uint8>(EPlatformerTraversalCustomMode::SlideDash));
-	UpdateTraversalState(EPlatformerTraversalState::SlideDash);
+	DashStartTime = GetWorldTimeSafe();
+	DashStartLocation = UpdatedComponent->GetComponentLocation();
+	DashDirectionSign = DirectionSign;
+	Velocity = FVector(DashDirectionSign * DashSettings.DashSpeed, 0.0f, 0.0f);
+	SetMovementMode(MOVE_Custom, static_cast<uint8>(EPlatformerTraversalCustomMode::Dash));
+	UpdateTraversalState(EPlatformerTraversalState::Dash);
 	return true;
 }
 
@@ -271,8 +274,8 @@ void UPlatformerTraversalMovementComponent::CancelTraversal()
 		ExitWallSlide(true);
 		break;
 
-	case EPlatformerTraversalState::SlideDash:
-		FinishSlideDash(true, !IsMovingOnGround());
+	case EPlatformerTraversalState::Dash:
+		FinishDash(true, !IsMovingOnGround());
 		break;
 
 	default:
@@ -295,40 +298,114 @@ bool UPlatformerTraversalMovementComponent::IsHangingOnLedge() const
 	return TraversalState == EPlatformerTraversalState::LedgeHang;
 }
 
+bool UPlatformerTraversalMovementComponent::IsClimbingLedge() const
+{
+	return TraversalState == EPlatformerTraversalState::LedgeClimb;
+}
+
 bool UPlatformerTraversalMovementComponent::IsWallSliding() const
 {
 	return TraversalState == EPlatformerTraversalState::WallSlide;
 }
 
-bool UPlatformerTraversalMovementComponent::IsSlideDashing() const
+bool UPlatformerTraversalMovementComponent::IsWallJumping() const
 {
-	return TraversalState == EPlatformerTraversalState::SlideDash;
+	return bWallJumpStateActive;
 }
 
-bool UPlatformerTraversalMovementComponent::IsInSlideDashRecovery() const
+bool UPlatformerTraversalMovementComponent::IsDashing() const
 {
-	return GetWorldTimeSafe() < SlideDashRecoveryEndTime;
+	return TraversalState == EPlatformerTraversalState::Dash;
+}
+
+bool UPlatformerTraversalMovementComponent::IsInDashRecovery() const
+{
+	return GetWorldTimeSafe() < DashRecoveryEndTime;
+}
+
+float UPlatformerTraversalMovementComponent::GetDashElapsedTime() const
+{
+	if (!IsDashing())
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(GetWorldTimeSafe() - DashStartTime, 0.0f);
+}
+
+float UPlatformerTraversalMovementComponent::GetDashDuration() const
+{
+	return FMath::Max(GetDashSettings().DashDuration, 0.0f);
+}
+
+float UPlatformerTraversalMovementComponent::GetDashNormalizedTime() const
+{
+	const float DashDuration = GetDashDuration();
+	if (DashDuration <= 0.0f)
+	{
+		return IsDashing() ? 1.0f : 0.0f;
+	}
+
+	return FMath::Clamp(GetDashElapsedTime() / DashDuration, 0.0f, 1.0f);
+}
+
+float UPlatformerTraversalMovementComponent::GetDashTravelDistance() const
+{
+	if (!IsDashing() || !UpdatedComponent)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Abs(UpdatedComponent->GetComponentLocation().X - DashStartLocation.X);
+}
+
+float UPlatformerTraversalMovementComponent::GetDashDistanceAlpha() const
+{
+	const float DashDistance = FMath::Max(GetDashSettings().DashDistance, 0.0f);
+	if (DashDistance <= 0.0f)
+	{
+		return IsDashing() ? 1.0f : 0.0f;
+	}
+
+	return FMath::Clamp(GetDashTravelDistance() / DashDistance, 0.0f, 1.0f);
+}
+
+float UPlatformerTraversalMovementComponent::GetDashProgressAlpha() const
+{
+	return FMath::Max(GetDashNormalizedTime(), GetDashDistanceAlpha());
+}
+
+float UPlatformerTraversalMovementComponent::GetLedgeClimbElapsedTime() const
+{
+	if (!IsClimbingLedge())
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(GetWorldTimeSafe() - LedgeClimbStartTime, 0.0f);
+}
+
+float UPlatformerTraversalMovementComponent::GetLedgeClimbDuration() const
+{
+	return FMath::Max(LedgeClimbDuration, 0.0f);
+}
+
+float UPlatformerTraversalMovementComponent::GetLedgeClimbNormalizedTime() const
+{
+	const float ResolvedLedgeClimbDuration = GetLedgeClimbDuration();
+	if (ResolvedLedgeClimbDuration <= 0.0f)
+	{
+		return IsClimbingLedge() ? 1.0f : 0.0f;
+	}
+
+	return FMath::Clamp(GetLedgeClimbElapsedTime() / ResolvedLedgeClimbDuration, 0.0f, 1.0f);
 }
 
 bool UPlatformerTraversalMovementComponent::IsAttackBlockedByTraversal() const
 {
-	return TraversalState == EPlatformerTraversalState::SlideDash
+	return TraversalState == EPlatformerTraversalState::Dash
 		|| TraversalState == EPlatformerTraversalState::LedgeHang
 		|| TraversalState == EPlatformerTraversalState::LedgeClimb;
-}
-
-void UPlatformerTraversalMovementComponent::CacheCapsuleState()
-{
-	if (const ACharacter* Character = CharacterOwner)
-	{
-		if (const UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent())
-		{
-			CachedCapsuleState.UnscaledRadius = CapsuleComponent->GetUnscaledCapsuleRadius();
-			CachedCapsuleState.UnscaledHalfHeight = CapsuleComponent->GetUnscaledCapsuleHalfHeight();
-			CachedCapsuleState.ShapeScale = CapsuleComponent->GetShapeScale();
-			CachedCapsuleState.bValid = true;
-		}
-	}
 }
 
 void UPlatformerTraversalMovementComponent::UpdateAutomaticTraversal()
@@ -395,8 +472,8 @@ void UPlatformerTraversalMovementComponent::UpdateTraversalState(EPlatformerTrav
 			AddPersistentCue(TraversalConfig->WallSettings.WallSlideCueTag);
 			break;
 
-		case EPlatformerTraversalState::SlideDash:
-			AddPersistentCue(TraversalConfig->SlideDashSettings.DashCueTag);
+		case EPlatformerTraversalState::Dash:
+			AddPersistentCue(TraversalConfig->DashSettings.DashCueTag);
 			break;
 
 		default:
@@ -516,8 +593,8 @@ FGameplayTag UPlatformerTraversalMovementComponent::GetStateTagForTraversalState
 	case EPlatformerTraversalState::WallSlide:
 		return PlatformerTraversalGameplayTags::State_Movement_WallSlide;
 
-	case EPlatformerTraversalState::SlideDash:
-		return PlatformerTraversalGameplayTags::State_Movement_SlideDash;
+	case EPlatformerTraversalState::Dash:
+		return PlatformerTraversalGameplayTags::State_Movement_Dash;
 
 	default:
 		break;
@@ -561,14 +638,14 @@ const FPlatformerLedgeTraversalSettings& UPlatformerTraversalMovementComponent::
 	return TraversalConfig ? TraversalConfig->LedgeSettings : DefaultLedgeSettings;
 }
 
-const FPlatformerSlideDashSettings& UPlatformerTraversalMovementComponent::GetSlideDashSettings() const
+const FPlatformerDashSettings& UPlatformerTraversalMovementComponent::GetDashSettings() const
 {
 	if (bHasDeveloperTraversalSettingsOverride)
 	{
-		return DeveloperSlideDashSettingsOverride;
+		return DeveloperDashSettingsOverride;
 	}
 
-	return TraversalConfig ? TraversalConfig->SlideDashSettings : DefaultSlideDashSettings;
+	return TraversalConfig ? TraversalConfig->DashSettings : DefaultDashSettings;
 }
 
 const FPlatformerWallTraversalSettings& UPlatformerTraversalMovementComponent::GetWallSettings() const
@@ -603,9 +680,9 @@ bool UPlatformerTraversalMovementComponent::ShouldUseFallingTraversal() const
 	return true;
 }
 
-bool UPlatformerTraversalMovementComponent::ShouldCancelSlideDashFromInput() const
+bool UPlatformerTraversalMovementComponent::ShouldCancelDashFromInput() const
 {
-	if (TraversalState != EPlatformerTraversalState::SlideDash)
+	if (TraversalState != EPlatformerTraversalState::Dash)
 	{
 		return false;
 	}
@@ -616,93 +693,12 @@ bool UPlatformerTraversalMovementComponent::ShouldCancelSlideDashFromInput() con
 		return false;
 	}
 
-	return HorizontalInput * SlideDashDirectionSign < 0.0f;
-}
-
-bool UPlatformerTraversalMovementComponent::RestoreCapsuleSizeIfPossible()
-{
-	if (!bDashCapsuleApplied || !CachedCapsuleState.bValid || !CharacterOwner)
-	{
-		bPendingCapsuleRestore = false;
-		return true;
-	}
-
-	UCapsuleComponent* CapsuleComponent = CharacterOwner->GetCapsuleComponent();
-	if (!CapsuleComponent)
-	{
-		return false;
-	}
-
-	const float CurrentUnscaledHalfHeight = CapsuleComponent->GetUnscaledCapsuleHalfHeight();
-	const float HeightDelta = (CachedCapsuleState.UnscaledHalfHeight - CurrentUnscaledHalfHeight) * CachedCapsuleState.ShapeScale;
-	const FVector TargetLocation = UpdatedComponent->GetComponentLocation() + FVector(0.0f, 0.0f, HeightDelta);
-	if (!CanUseFullCapsuleAt(TargetLocation))
-	{
-		bPendingCapsuleRestore = true;
-		return false;
-	}
-
-	CapsuleComponent->SetCapsuleSize(CachedCapsuleState.UnscaledRadius, CachedCapsuleState.UnscaledHalfHeight, true);
-	UpdatedComponent->SetWorldLocation(TargetLocation, false, nullptr, ETeleportType::TeleportPhysics);
-	bDashCapsuleApplied = false;
-	bPendingCapsuleRestore = false;
-	return true;
-}
-
-void UPlatformerTraversalMovementComponent::ApplySlideDashCapsule()
-{
-	if (bDashCapsuleApplied || !CharacterOwner)
-	{
-		return;
-	}
-
-	const FPlatformerSlideDashSettings& SlideDashSettings = GetSlideDashSettings();
-	CacheCapsuleState();
-	if (!CachedCapsuleState.bValid)
-	{
-		return;
-	}
-
-	UCapsuleComponent* CapsuleComponent = CharacterOwner->GetCapsuleComponent();
-	if (!CapsuleComponent)
-	{
-		return;
-	}
-
-	float SlideDashCapsuleScale = FMath::Max(SlideDashSettings.DashHitboxScale, 0.0f);
-	float StandingCapsuleHalfHeight = CachedCapsuleState.UnscaledHalfHeight;
-	if (const APlatformerCharacterBase* PlatformerCharacter = Cast<APlatformerCharacterBase>(CharacterOwner))
-	{
-		SlideDashCapsuleScale = PlatformerCharacter->ResolveDeveloperCrouchCapsuleScale(SlideDashCapsuleScale);
-
-		if (const ACharacter* DefaultCharacter = CharacterOwner->GetClass()->GetDefaultObject<ACharacter>())
-		{
-			if (const UCapsuleComponent* DefaultCapsuleComponent = DefaultCharacter->GetCapsuleComponent())
-			{
-				StandingCapsuleHalfHeight = DefaultCapsuleComponent->GetUnscaledCapsuleHalfHeight();
-			}
-		}
-	}
-
-	const float NewUnscaledHalfHeight = FMath::Max(
-		CachedCapsuleState.UnscaledRadius,
-		StandingCapsuleHalfHeight * SlideDashCapsuleScale);
-	const float HeightDelta = (CachedCapsuleState.UnscaledHalfHeight - NewUnscaledHalfHeight) * CachedCapsuleState.ShapeScale;
-
-	CapsuleComponent->SetCapsuleSize(CachedCapsuleState.UnscaledRadius, NewUnscaledHalfHeight, true);
-	UpdatedComponent->SetWorldLocation(
-		UpdatedComponent->GetComponentLocation() - FVector(0.0f, 0.0f, HeightDelta),
-		false,
-		nullptr,
-		ETeleportType::TeleportPhysics);
-
-	bDashCapsuleApplied = true;
-	bPendingCapsuleRestore = true;
+	return HorizontalInput * DashDirectionSign < 0.0f;
 }
 
 bool UPlatformerTraversalMovementComponent::CanUseFullCapsuleAt(const FVector& TestLocation) const
 {
-	if (!CachedCapsuleState.bValid || !CharacterOwner || !GetWorld())
+	if (!CharacterOwner || !GetWorld())
 	{
 		return false;
 	}
@@ -713,14 +709,14 @@ bool UPlatformerTraversalMovementComponent::CanUseFullCapsuleAt(const FVector& T
 		return false;
 	}
 
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TraversalRestoreCapsule), false, CharacterOwner);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TraversalFullCapsule), false, CharacterOwner);
 	return !GetWorld()->OverlapBlockingTestByProfile(
 		TestLocation,
 		FQuat::Identity,
 		CapsuleComponent->GetCollisionProfileName(),
 		FCollisionShape::MakeCapsule(
-			CachedCapsuleState.UnscaledRadius * CachedCapsuleState.ShapeScale,
-			CachedCapsuleState.UnscaledHalfHeight * CachedCapsuleState.ShapeScale),
+			CapsuleComponent->GetScaledCapsuleRadius(),
+			CapsuleComponent->GetScaledCapsuleHalfHeight()),
 		QueryParams);
 }
 
@@ -976,11 +972,22 @@ bool UPlatformerTraversalMovementComponent::TryFindLegacyWorldLedgeGrab(
 		TopHit.Location.Z - CapsuleHalfHeight + LedgeSettings.HangVerticalOffset);
 
 	OutClimbTargetLocation = FVector(
-		TopHit.Location.X,
+		OutHangLocation.X + DirectionSign * LedgeSettings.TopPointHorizontalOffset,
 		LockedDepthY,
 		TopHit.Location.Z + CapsuleHalfHeight + PlatformerTraversalPrivate::FloorStandTolerance);
 
 	return CanUseFullCapsuleAt(OutClimbTargetLocation) && HasWalkableFloorBelow(OutClimbTargetLocation);
+}
+
+bool UPlatformerTraversalMovementComponent::CanStartLedgeClimbFromInput() const
+{
+	if (TraversalState != EPlatformerTraversalState::LedgeHang)
+	{
+		return false;
+	}
+
+	const float InputClimbDelay = FMath::Max(GetLedgeSettings().InputClimbDelay, 0.0f);
+	return GetWorldTimeSafe() >= LedgeHangStartTime + InputClimbDelay;
 }
 
 bool UPlatformerTraversalMovementComponent::TryFindWallSlide(
@@ -1003,7 +1010,7 @@ bool UPlatformerTraversalMovementComponent::TryFindWallSlide(
 	if (TraversalState == EPlatformerTraversalState::WallSlide && !FMath::IsNearlyZero(WallSlideNormal.X))
 	{
 		// While we are already attached to a wall, keep probing that same side so the player can
-		// press away from the wall and still execute a wall kick on the next jump press.
+		// press away from the wall and still execute a wall jump on the next jump press.
 		DirectionSign = -FMath::Sign(WallSlideNormal.X);
 	}
 	else
@@ -1065,9 +1072,9 @@ bool UPlatformerTraversalMovementComponent::TryFindWallSlide(
 	OutAnchorLocation = WallHit.ImpactPoint;
 	OutWallActor = WallHit.GetActor();
 
-	if (OutWallActor == LastWallKickActor.Get()
+	if (OutWallActor == LastWallJumpActor.Get()
 		&& GetWorldTimeSafe() < SameWallReattachEndTime
-		&& FVector::DotProduct(LastWallKickNormal, OutWallNormal) > 0.8f)
+		&& FVector::DotProduct(LastWallJumpNormal, OutWallNormal) > 0.8f)
 	{
 		return false;
 	}
@@ -1083,6 +1090,7 @@ void UPlatformerTraversalMovementComponent::EnterLedgeHang(
 	LedgeHangLocation = HangLocation;
 	LedgeClimbTargetLocation = ClimbTargetLocation;
 	LedgeWallNormal = WallNormal;
+	LedgeHangStartTime = GetWorldTimeSafe();
 	Velocity = FVector::ZeroVector;
 	StopMovementImmediately();
 	UpdatedComponent->SetWorldLocation(LedgeHangLocation, false, nullptr, ETeleportType::TeleportPhysics);
@@ -1127,7 +1135,7 @@ void UPlatformerTraversalMovementComponent::PhysLedgeHang(float DeltaTime, int32
 	Velocity = FVector::ZeroVector;
 	UpdatedComponent->SetWorldLocation(LedgeHangLocation, false, nullptr, ETeleportType::TeleportPhysics);
 
-	if (TraversalInputVector.Y > 0.5f)
+	if (TraversalInputVector.Y > 0.5f && CanStartLedgeClimbFromInput())
 	{
 		StartLedgeClimb();
 		return;
@@ -1230,7 +1238,7 @@ void UPlatformerTraversalMovementComponent::PhysWallSlide(float DeltaTime, int32
 	}
 }
 
-void UPlatformerTraversalMovementComponent::PerformWallKick()
+void UPlatformerTraversalMovementComponent::PerformWallJump()
 {
 	if (!bTraversalEnabled)
 	{
@@ -1242,20 +1250,47 @@ void UPlatformerTraversalMovementComponent::PerformWallKick()
 	const FVector JumpDirection =
 		(WallSlideNormal * FMath::Cos(JumpAngleRadians) + FVector::UpVector * FMath::Sin(JumpAngleRadians)).GetSafeNormal();
 
-	LastWallKickActor = WallSlideActor;
-	LastWallKickNormal = WallSlideNormal;
+	LastWallJumpActor = WallSlideActor;
+	LastWallJumpNormal = WallSlideNormal;
 	SameWallReattachEndTime = GetWorldTimeSafe() + WallSettings.SameWallReattachCooldown;
 	ExitWallSlide(false);
 	SetMovementMode(MOVE_Falling);
 	Velocity = JumpDirection * WallSettings.WallJumpForce;
+	StartWallJumpState();
 }
 
-void UPlatformerTraversalMovementComponent::FinishSlideDash(bool bInterrupted, bool bForceFallingMode)
+void UPlatformerTraversalMovementComponent::StartWallJumpState()
 {
-	SlideDashRecoveryEndTime = GetWorldTimeSafe() + GetSlideDashSettings().DashRecovery;
+	ClearWallJumpState();
+
+	const float WallJumpStateDuration = FMath::Max(GetWallSettings().WallJumpStateDuration, 0.0f);
+	if (WallJumpStateDuration <= 0.0f)
+	{
+		return;
+	}
+
+	bWallJumpStateActive = true;
+	WallJumpStateEndTime = GetWorldTimeSafe() + WallJumpStateDuration;
+	AddLooseTag(PlatformerTraversalGameplayTags::State_Movement_WallJump);
+}
+
+void UPlatformerTraversalMovementComponent::ClearWallJumpState()
+{
+	if (!bWallJumpStateActive)
+	{
+		return;
+	}
+
+	bWallJumpStateActive = false;
+	WallJumpStateEndTime = -1.0f;
+	RemoveLooseTag(PlatformerTraversalGameplayTags::State_Movement_WallJump);
+}
+
+void UPlatformerTraversalMovementComponent::FinishDash(bool bInterrupted, bool bForceFallingMode)
+{
+	DashRecoveryEndTime = GetWorldTimeSafe() + GetDashSettings().DashRecovery;
 	Velocity = FVector(0.0f, 0.0f, bForceFallingMode ? Velocity.Z : 0.0f);
 	UpdateTraversalState(EPlatformerTraversalState::None);
-	RestoreCapsuleSizeIfPossible();
 
 	if (bForceFallingMode)
 	{
@@ -1267,40 +1302,40 @@ void UPlatformerTraversalMovementComponent::FinishSlideDash(bool bInterrupted, b
 	}
 }
 
-void UPlatformerTraversalMovementComponent::PhysSlideDash(float DeltaTime, int32 Iterations)
+void UPlatformerTraversalMovementComponent::PhysDash(float DeltaTime, int32 Iterations)
 {
 	if (!bTraversalEnabled)
 	{
-		FinishSlideDash(true, !IsMovingOnGround());
+		FinishDash(true, !IsMovingOnGround());
 		return;
 	}
 
-	const FPlatformerSlideDashSettings& SlideDashSettings = GetSlideDashSettings();
+	const FPlatformerDashSettings& DashSettings = GetDashSettings();
 	FFindFloorResult FloorResult;
 	FindFloor(UpdatedComponent->GetComponentLocation(), FloorResult, false);
 	if (!FloorResult.IsWalkableFloor())
 	{
-		FinishSlideDash(true, true);
+		FinishDash(true, true);
 		return;
 	}
 
-	const float ElapsedTime = GetWorldTimeSafe() - SlideDashStartTime;
-	const float TravelDistance = FMath::Abs(UpdatedComponent->GetComponentLocation().X - SlideDashStartLocation.X);
-	if (ElapsedTime >= SlideDashSettings.DashDuration || TravelDistance >= SlideDashSettings.DashDistance)
+	const float ElapsedTime = GetWorldTimeSafe() - DashStartTime;
+	const float TravelDistance = FMath::Abs(UpdatedComponent->GetComponentLocation().X - DashStartLocation.X);
+	if (ElapsedTime >= DashSettings.DashDuration || TravelDistance >= DashSettings.DashDistance)
 	{
-		FinishSlideDash(false, false);
+		FinishDash(false, false);
 		return;
 	}
 
-	const float RemainingDistance = FMath::Max(SlideDashSettings.DashDistance - TravelDistance, 0.0f);
-	const float FrameDistance = FMath::Min(SlideDashSettings.DashSpeed * DeltaTime, RemainingDistance);
+	const float RemainingDistance = FMath::Max(DashSettings.DashDistance - TravelDistance, 0.0f);
+	const float FrameDistance = FMath::Min(DashSettings.DashSpeed * DeltaTime, RemainingDistance);
 	if (FrameDistance <= KINDA_SMALL_NUMBER)
 	{
-		FinishSlideDash(false, false);
+		FinishDash(false, false);
 		return;
 	}
 
-	FVector DashDelta(SlideDashDirectionSign * FrameDistance, 0.0f, 0.0f);
+	FVector DashDelta(DashDirectionSign * FrameDistance, 0.0f, 0.0f);
 	if (FloorResult.HitResult.IsValidBlockingHit())
 	{
 		DashDelta = FVector::VectorPlaneProject(DashDelta, FloorResult.HitResult.ImpactNormal);
@@ -1314,16 +1349,16 @@ void UPlatformerTraversalMovementComponent::PhysSlideDash(float DeltaTime, int32
 		const bool bBlockedByWall = FMath::Abs(Hit.Normal.X) > PlatformerTraversalPrivate::VerticalWallNormalThreshold;
 		if (bBlockedByWall)
 		{
-			FinishSlideDash(false, false);
+			FinishDash(false, false);
 			return;
 		}
 	}
 
-	Velocity = FVector(SlideDashDirectionSign * SlideDashSettings.DashSpeed, 0.0f, 0.0f);
+	Velocity = FVector(DashDirectionSign * DashSettings.DashSpeed, 0.0f, 0.0f);
 
 	FindFloor(UpdatedComponent->GetComponentLocation(), FloorResult, false);
 	if (!FloorResult.IsWalkableFloor())
 	{
-		FinishSlideDash(true, true);
+		FinishDash(true, true);
 	}
 }
